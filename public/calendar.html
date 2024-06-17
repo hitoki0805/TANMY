@@ -1,18 +1,59 @@
 <!DOCTYPE html>
-<html lang='en'>
+<html lang='ja'>
   <head>
     <meta charset='utf-8' />
+    <link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.14/index.global.min.css' rel='stylesheet' />
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.14/index.global.min.js'></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script> <!-- jQueryの追加 -->
+    <link href='css/calendar.css' rel='stylesheet' />
     <script>
-
       document.addEventListener('DOMContentLoaded', function() {
+        $.get("https://holidays-jp.github.io/api/v1/date.json", function(holidaysData) {
+
+        // 初期処理
         var calendarEl = document.getElementById('calendar');
         var calendar = new FullCalendar.Calendar(calendarEl, {
-          initialView: 'dayGridMonth'
+          headerToolbar: {
+            left: 'prev,next today',
+            center: 'title',
+            right: 'timeGridDay,timeGridWeek,dayGridMonth'
+          },
+          initialView: 'dayGridMonth',
+          navLinks: true, // 日付と週のリンクを有効にする
+          editable: true,
+          dayMaxEvents: true, // イベントが多い場合には+ボタンで表示
+          events: getEventDates(holidaysData),
+          eventContent: function(arg) {
+            // 祝日の日付にクラスを追加
+            if (arg.event.extendedProps.holiday) {
+              var element = document.querySelector('.fc-daygrid-day[data-date="' + arg.event.startStr + '"]');
+              if (element) {
+                element.classList.add("holiday");
+              }
+            }
+          },
         });
         calendar.render();
       });
+    });
 
+    function getEventDates(holidaysData){
+      var eventDates = [];
+
+      var holidays = Object.keys(holidaysData);
+      for(var i = 0; i < holidays.length; i++) {
+        var holiday = 
+        {
+          title: holidaysData[holidays[i]],
+          start: holidays[i],
+          className: "holiday",
+          holiday: holidays[i],
+          color: 'white'
+        };
+        eventDates.push(holiday);
+      }
+      return eventDates; // 返り値を追加
+    }
     </script>
   </head>
   <body>
