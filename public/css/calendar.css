@@ -1,0 +1,11 @@
+@charset 'UTF-8';
+
+.fc-day-sun { color: red; } /* 日曜日の文字を赤色に */
+.fc-day-sat { color: blue; } /* 土曜日の文字を青色に */
+.holiday .fc-daygrid-day-number {
+    color: red;
+}
+.holiday .fc-event-main {
+    background-color: transparent !important; /* 背景色を透明に */
+    border: none !important; /* 枠線を消す */
+}
