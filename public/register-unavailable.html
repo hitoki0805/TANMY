@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>バイト不可時間登録</title>
+    <!-- Firebase SDKのモジュールベースのインポート -->
+    <script type="module">
+        import { firebaseConfig } from './APIkeys/firebaseAPI.js';
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js';
+        import { getFirestore, addDoc, collection, getDocs, query, deleteDoc, doc } from 'https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js';
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        document.getElementById('unavailableForm').addEventListener('submit', async function(event) {
+            event.preventDefault();
+            const unavailableData = {
+                date: document.getElementById('date').value,
+                startTime: document.getElementById('startTime').value,
+                endTime: document.getElementById('endTime').value
+            };
+
+            try {
+                await addDoc(collection(db, "unavailableTimes"), unavailableData);
+                alert('登録が完了しました。');
+                document.getElementById('unavailableForm').reset();
+                loadUnavailableTimes();  // データを再読み込み
+            } catch (error) {
+                console.error('エラーが発生しました: ', error);
+                alert('エラーが発生しました。詳細: ' + error.message);
+            }
+        });
+
+        async function loadUnavailableTimes() {
+            const querySnapshot = await getDocs(query(collection(db, "unavailableTimes")));
+            const timesList = document.getElementById('timesList');
+            timesList.innerHTML = '';  // リストをクリア
+            querySnapshot.forEach((docSnapshot) => {
+                const time = docSnapshot.data();
+                const listItem = document.createElement('li');
+                listItem.innerHTML = `日付: ${time.date},<br>開始時間: ${time.startTime}, <br>終了時間: ${time.endTime}<br>`;
+                const deleteButton = document.createElement('button');
+                deleteButton.textContent = '削除';
+                deleteButton.addEventListener('click', async () => {
+                    await deleteDoc(doc(db, "unavailableTimes", docSnapshot.id));
+                    loadUnavailableTimes();  // データを再読み込み
+                });
+                listItem.appendChild(deleteButton);
+                timesList.appendChild(listItem);
+            });
+        }
+
+        // 初期読み込み時に実行
+        window.addEventListener('DOMContentLoaded', (event) => {
+            loadUnavailableTimes();
+        });
+    </script>
+</head>
+<body>
+    <h1>バイト不可時間登録</h1>
+    <form id="unavailableForm">
+        <label for="date">日付:</label>
+        <input type="date" id="date" required><br>
+        <label for="startTime">開始時間:</label>
+        <input type="time" id="startTime" required><br>
+        <label for="endTime">終了時間:</label>
+        <input type="time" id="endTime" required><br>
+        <button type="submit">登録</button>
+    </form>
+    <h2>登録済みの不可時間</h2>
+    <ul id="timesList"></ul>
+    <!-- 前のページに戻るボタン -->
+    <button onclick="location.href='mainpage.html'" style="margin-top: 20px;">前のページに戻る</button>
+</body>
+</html>
