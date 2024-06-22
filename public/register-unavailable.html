@@ -17,8 +17,10 @@
             const recurrence = document.getElementById('recurrence').value;
             const date = document.getElementById('date').value;
             const weekday = getWeekday(date);
+            const name = document.getElementById('name').value || '予定'; // 名称が入力されていない場合は「予定」
 
             const unavailableData = {
+                name: name, // 新しいフィールド
                 date: date,
                 startTime: document.getElementById('startTime').value,
                 endTime: document.getElementById('endTime').value,
@@ -44,7 +46,7 @@
             querySnapshot.forEach((docSnapshot) => {
                 const time = docSnapshot.data();
                 const listItem = document.createElement('li');
-                listItem.innerHTML = `日付: ${time.date},<br>開始時間: ${time.startTime}, <br>終了時間: ${time.endTime},<br>定期: ${time.recurrence}`;
+                listItem.innerHTML = `名称: ${time.name},<br>日付: ${time.date},<br>開始時間: ${time.startTime}, <br>終了時間: ${time.endTime},<br>定期: ${time.recurrence}`;
                 if (time.recurrence === 'weekly') {
                     listItem.innerHTML += `,<br>曜日: ${time.weekday}`; // 曜日情報を追加
                 }
@@ -83,6 +85,8 @@
 <body>
     <h1>予定の登録</h1>
     <form id="unavailableForm">
+        <label for="name">名称:</label>
+        <input type="text" id="name"><br> <!-- 名称の入力欄 -->
         <label for="date">日付:</label>
         <input type="date" id="date" required><br>
         <span id="weekdayDisplay">曜日: </span><br> <!-- 曜日を表示するフィールド -->
