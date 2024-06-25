@@ -14,10 +14,18 @@
 
         document.getElementById('unavailableForm').addEventListener('submit', async function(event) {
             event.preventDefault();
+            const recurrence = document.getElementById('recurrence').value;
+            const date = document.getElementById('date').value;
+            const weekday = getWeekday(date);
+            const name = document.getElementById('name').value || '予定'; // 名称が入力されていない場合は「予定」
+
             const unavailableData = {
-                date: document.getElementById('date').value,
+                name: name, // 新しいフィールド
+                date: date,
                 startTime: document.getElementById('startTime').value,
-                endTime: document.getElementById('endTime').value
+                endTime: document.getElementById('endTime').value,
+                recurrence: recurrence,
+                weekday: weekday // 新しいフィールド
             };
 
             try {
@@ -38,7 +46,11 @@
             querySnapshot.forEach((docSnapshot) => {
                 const time = docSnapshot.data();
                 const listItem = document.createElement('li');
-                listItem.innerHTML = `日付: ${time.date},<br>開始時間: ${time.startTime}, <br>終了時間: ${time.endTime}<br>`;
+                listItem.innerHTML = `名称: ${time.name},<br>日付: ${time.date},<br>開始時間: ${time.startTime}, <br>終了時間: ${time.endTime},<br>定期: ${time.recurrence}`;
+                if (time.recurrence === 'weekly') {
+                    listItem.innerHTML += `,<br>曜日: ${time.weekday}`; // 曜日情報を追加
+                }
+                listItem.innerHTML += `<br>`;
                 const deleteButton = document.createElement('button');
                 deleteButton.textContent = '削除';
                 deleteButton.addEventListener('click', async () => {
@@ -54,20 +66,44 @@
         window.addEventListener('DOMContentLoaded', (event) => {
             loadUnavailableTimes();
         });
+
+        // 日付から曜日を取得する関数
+        function getWeekday(dateString) {
+            const date = new Date(dateString);
+            const weekdays = ['日曜日', '月曜日', '火曜日', '水曜日', '木曜日', '金曜日', '土曜日'];
+            return weekdays[date.getUTCDay()];
+        }
+
+        // 日付が変更されたときに曜日を表示
+        document.getElementById('date').addEventListener('change', function() {
+            const date = this.value;
+            const weekday = getWeekday(date);
+            document.getElementById('weekdayDisplay').textContent = `曜日: ${weekday}`;
+        });
     </script>
 </head>
 <body>
-    <h1>バイト不可時間登録</h1>
+    <h1>予定の登録</h1>
     <form id="unavailableForm">
+        <label for="name">名称:</label>
+        <input type="text" id="name"><br> <!-- 名称の入力欄 -->
         <label for="date">日付:</label>
         <input type="date" id="date" required><br>
+        <span id="weekdayDisplay">曜日: </span><br> <!-- 曜日を表示するフィールド -->
         <label for="startTime">開始時間:</label>
         <input type="time" id="startTime" required><br>
         <label for="endTime">終了時間:</label>
         <input type="time" id="endTime" required><br>
+        <label for="recurrence">定期:</label>
+        <select id="recurrence" required>
+            <option value="none">なし</option>
+            <option value="daily">毎日</option>
+            <option value="weekly">毎週</option>
+            <option value="monthly">毎月</option>
+        </select><br>
         <button type="submit">登録</button>
     </form>
-    <h2>登録済みの不可時間</h2>
+    <h2>登録済みの予定</h2>
     <ul id="timesList"></ul>
     <!-- 前のページに戻るボタン -->
     <button onclick="location.href='mainpage.html'" style="margin-top: 20px;">前のページに戻る</button>
