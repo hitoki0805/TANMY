@@ -18,10 +18,11 @@ async function getUnavailableTimes() {
 }
 
 // 予定のない時間帯を見つける
-function findAvailableSlots(unavailableTimes, startDate, endDate, storeOpenTime, storeCloseTime) {
+function findAvailableSlots(unavailableTimes, startDate, endDate, storeOpenTime, storeCloseTime, sleepStartTime, sleepEndTime) {
     const availableSlots = [];
     let currentDate = new Date(startDate);
 
+    // 各日の睡眠時間を予定に追加
     while (currentDate <= endDate) {
         let dayStart = new Date(currentDate);
         let dayEnd = new Date(currentDate);
@@ -33,6 +34,18 @@ function findAvailableSlots(unavailableTimes, startDate, endDate, storeOpenTime,
         dayEnd.setHours(storeCloseTime, 0, 0, 0);
 
         availableSlots.push({ start: dayStart, end: dayEnd });
+
+        // 睡眠時間を予定に追加
+        if (sleepStartTime > sleepEndTime) {
+            unavailableTimes.push(
+                { date: currentDate.toISOString().split('T')[0], startTime: `${sleepStartTime}:00`, endTime: '24:00' },
+                { date: new Date(currentDate.getTime() + 86400000).toISOString().split('T')[0], startTime: '00:00', endTime: `${sleepEndTime}:00` }
+            );
+        } else {
+            unavailableTimes.push(
+                { date: currentDate.toISOString().split('T')[0], startTime: `${sleepStartTime}:00`, endTime: `${sleepEndTime}:00` }
+            );
+        }
 
         currentDate.setDate(currentDate.getDate() + 1);
     }
@@ -85,9 +98,13 @@ function selectOptimalShifts(shiftCandidates, targetEarnings) {
 }
 
 // メイン関数
-async function proposeShifts(targetEarnings, hourlyWage, nightWage, holidayPay, startDate, endDate, storeOpenTime, storeCloseTime) {
+async function proposeShifts(targetEarnings, hourlyWage, nightWage, holidayPay, startDate, endDate, storeOpenTime, storeCloseTime, sleepStartTime, sleepEndTime) {
     const unavailableTimes = await getUnavailableTimes();
-    const availableSlots = findAvailableSlots(unavailableTimes, startDate, endDate, storeOpenTime, storeCloseTime);
+    const availableSlots = findAvailableSlots(unavailableTimes, startDate, endDate, storeOpenTime, storeCloseTime, sleepStartTime, sleepEndTime);
+
+    // デバッグ用に登録されている予定をコンソールに出力
+    console.log("登録されている予定:", unavailableTimes);
+
     const shiftCandidates = generateShiftCandidates(availableSlots, hourlyWage, nightWage, holidayPay);
     const { selectedShifts, totalEarnings } = selectOptimalShifts(shiftCandidates, targetEarnings);
     return { selectedShifts, totalEarnings };
@@ -103,10 +120,12 @@ function runTests() {
     const holidayPay = 1500;      // 休日給
     const startDate = new Date('2024-06-01');      // シフト提案の開始日
     const endDate = new Date('2024-06-30');        // シフト提案の終了日
-    const storeOpenTime = 5;     // 店舗の開店時間 (10時)
+    const storeOpenTime = 5;     // 店舗の開店時間 (5時)
     const storeCloseTime = 2;    // 店舗の閉店時間 (翌2時)
+    const sleepStartTime = 23;   // 睡眠開始時刻
+    const sleepEndTime = 7;      // 睡眠終了時刻
 
-    proposeShifts(targetEarnings, hourlyWage, nightWage, holidayPay, startDate, endDate, storeOpenTime, storeCloseTime)
+    proposeShifts(targetEarnings, hourlyWage, nightWage, holidayPay, startDate, endDate, storeOpenTime, storeCloseTime, sleepStartTime, sleepEndTime)
     .then(({ selectedShifts, totalEarnings }) => {
         console.log("提案されたシフト:", selectedShifts);
         console.log("合計の稼ぎ:", totalEarnings);
