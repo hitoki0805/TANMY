@@ -1,22 +1,26 @@
-/* styles.css */
-@charset 'UTF-8';
 body {
-    font-family: 'Arial', sans-serif;
+    font-family: 'Roboto', sans-serif;
     margin: 0;
     padding: 0;
-    background-color: #f4f4f4;
+    background-color: #ECEFF1;
+    color: #2C3E50;
 }
 
 header {
-    background-color: #333;
-    color: white;
+    background-color: #2C3E50;
+    color: #FFFFFF;
     padding: 10px 0;
+}
+
+header h1 {
+    margin: 0;
     text-align: center;
 }
 
 nav ul {
     list-style-type: none;
     padding: 0;
+    text-align: center;
 }
 
 nav ul li {
@@ -25,49 +29,116 @@ nav ul li {
 }
 
 nav ul li a {
-    color: white;
+    color: #FFFFFF;
     text-decoration: none;
-    font-weight: bold;
+    font-size: 16px;
 }
 
-main {
-    padding: 20px;
-    max-width: 800px;
-    margin: auto;
-}
-
-section {
-    background-color: white;
-    margin-bottom: 20px;
-    padding: 20px;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-h2 {
-    color: #333;
+nav ul li a:hover {
+    text-decoration: underline;
 }
 
 .button {
-    display: inline-block;
-    background-color: #008cba;
-    color: white;
-    padding: 10px 15px;
-    text-decoration: none;
+    background-color: #3498DB;
+    color: #FFFFFF;
+    padding: 10px 20px;
+    border: none;
     border-radius: 5px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 16px;
     transition: background-color 0.3s;
 }
 
 .button:hover {
-    background-color: #005f5f;
+    background-color: #2980B9;
+}
+
+main {
+    padding: 20px;
+    text-align: center;
+}
+
+.container {
+    display: flex;
+}
+
+section {
+    margin: 20px 0;
 }
 
 footer {
+    background-color: #2C3E50;
+    color: #FFFFFF;
     text-align: center;
-    padding: 10px;
-    background-color: #333;
-    color: white;
-    position: fixed;
+    padding: 10px 0;
+    position: relative;
     width: 100%;
     bottom: 0;
 }
+
+@media (max-width: 768px) {
+    nav ul {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    nav ul li {
+        margin: 10px 0;
+    }
+
+    .button {
+        width: 100%;
+        box-sizing: border-box;
+    }
+}
+
+.fc-day-sat .fc-daygrid-day-number,
+.fc-col-header-cell-sat {
+    color: blue;
+}
+
+.fc-day-sun .fc-daygrid-day-number,
+.fc-col-header-cell-sun,
+.holiday .fc-daygrid-day-number {
+    color: red;
+}
+
+footer {
+    background-color: #2C3E50;
+    color: #FFFFFF;
+    text-align: center;
+    padding: 10px 0;
+    position: relative;
+    width: 100%;
+    bottom: 0;
+}
+
+@media (max-width: 768px) {
+    nav ul {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    nav ul li {
+        margin: 10px 0;
+    }
+
+    .button {
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    main {
+        flex-direction: column;
+    }
+
+    section {
+        width: 100%;
+        flex: none;
+    }
+}
+
