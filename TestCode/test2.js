@@ -51,7 +51,11 @@ async function proposeShifts(sleepStartTime, sleepEndTime, startDate, endDate, s
 
     // 利用可能なシフトを提案
     let availableShifts = [];
-    let currentDate = new Date(`${startDate.toISOString().split('T')[0]}T${storeOpenTime}`); // 店舗の開店時間から開始
+    let currentDate = new Date(`${startDate.toISOString().split('T')[0]}T${storeOpenTime}`);
+    if (currentDate < startDate) {
+        currentDate.setDate(currentDate.getDate() + 1); // 開店時間が指定された開始日より前なら、日付を1日進める
+    }
+
     while (currentDate <= endDate) {
         let dayOpenTime = new Date(`${currentDate.toISOString().split('T')[0]}T${storeOpenTime}`);
         let dayCloseTime = new Date(`${currentDate.toISOString().split('T')[0]}T${storeCloseTime}`);
@@ -94,7 +98,7 @@ async function proposeShifts(sleepStartTime, sleepEndTime, startDate, endDate, s
         }
 
         availableShifts = availableShifts.concat(dayShifts);
-        currentDate.setDate(currentDate.getDate() + 1);
+        currentDate.setDate(currentDate.getDate() + 1); // 次の日に進む
     }
 
     console.log("提案されたシフト:", availableShifts);
@@ -151,7 +155,7 @@ function runTests() {
                 currentHour = new Date(currentHour.getTime() + 3600000);
             }
 
-            if (totalEarnings + shiftEarnings <= targetEarnings) {
+            if (totalEarnings <= targetEarnings) {
                 selectedShifts.push(shift);
                 totalEarnings += shiftEarnings;
             }
