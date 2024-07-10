@@ -7,7 +7,7 @@ JavaScript関数のテスト用コード
 */
 
 // モックデータを追加する関数
-async function getUnavailableTimes(sleepStartTime, sleepEndTime, startDate, endDate) {
+async function getUnavailableTimes(sleepStartTime, sleepEndTime, startDate, endDate, storeOpenTime, storeCloseTime) {
     // 開始日と終了日の間の日付を生成
     const dateRange = [];
     let currentDate = new Date(startDate);
@@ -27,13 +27,25 @@ async function getUnavailableTimes(sleepStartTime, sleepEndTime, startDate, endD
         }
     }).flat();
 
+    const closeTimes = dateRange.map(date => {
+        if (storeCloseTime > storeOpenTime) { // 日付を跨ぐ場合
+            return [
+                { date: date, startTime: storeCloseTime, endTime: '24:00' },
+                { date: new Date(new Date(date).getTime() + 86400000).toISOString().split('T')[0], startTime: '00:00', endTime: storeOpenTime }
+            ];
+        } else {
+            return { date: date, startTime: storeCloseTime, endTime: storeOpenTime };
+        }
+    }).flat();
+
     const allTimes = [
         { date: '2024-06-01', startTime: '09:00', endTime: '12:00' },
         { date: '2024-06-05', startTime: '09:00', endTime: '12:00' },
         { date: '2024-06-10', startTime: '14:00', endTime: '16:00' },
         { date: '2024-06-15', startTime: '18:00', endTime: '20:00' },
         // 他のモックデータを追加
-        ...sleepTimes
+        ...sleepTimes,
+        ...closeTimes
     ];
 
     // 日時でソート
@@ -46,7 +58,7 @@ async function getUnavailableTimes(sleepStartTime, sleepEndTime, startDate, endD
 
 // メイン関数
 async function proposeShifts(sleepStartTime, sleepEndTime, startDate, endDate, storeOpenTime, storeCloseTime) {
-    const blockedTimes = await getUnavailableTimes(sleepStartTime, sleepEndTime, startDate, endDate);
+    const blockedTimes = await getUnavailableTimes(sleepStartTime, sleepEndTime, startDate, endDate, storeOpenTime, storeCloseTime);
     console.log("登録されている予定", blockedTimes);
 
     // 利用可能なシフトを提案
