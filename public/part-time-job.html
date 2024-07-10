@@ -18,8 +18,9 @@
                 name: document.getElementById('name').value,
                 hourlyWage: Number(document.getElementById('hourlyWage').value),
                 nightWage: Number(document.getElementById('nightWage').value),
-                nightHours: document.getElementById('nightHours').value,
-                holidayPay: Number(document.getElementById('holidayPay').value)
+                storeOpenTime: document.getElementById('storeOpenTime').value,
+                storeCloseTime: document.getElementById('storeCloseTime').value,
+                holidayPay: Number(document.getElementById('holidayPay').value)  // 休日給の値を取得して数値に変換
             };
 
             try {
@@ -41,7 +42,7 @@
             querySnapshot.forEach((doc) => {
                 const job = doc.data();
                 const listItem = document.createElement('li');
-                listItem.innerHTML = `バイト先の名称：${job.name}<br>基本給：${job.hourlyWage}円<br>深夜給：${job.nightWage}円<br>深夜時間：${job.nightHours}<br>休日給：${job.holidayPay}円`;
+                listItem.innerHTML = `バイト先の名称：${job.name}<br>基本給：${job.hourlyWage}円<br>深夜給：${job.nightWage}円<br>店舗の開店時間：${job.storeOpenTime}<br>店舗の閉店時間：${job.storeCloseTime}<br>休日給：${job.holidayPay}円`;
                 listItem.style.marginBottom = "20px";  // 項目間の隙間を設定
                 const deleteButton = document.createElement('button');
                 deleteButton.textContent = '削除';
@@ -71,8 +72,10 @@
         <input type="number" id="hourlyWage" required><br>
         <label for="nightWage">深夜給:</label>
         <input type="number" id="nightWage" required><br>
-        <label for="nightHours">深夜給発生時間帯:</label>
-        <input type="text" id="nightHours" placeholder="例: 22時～5時" required><br>
+        <label for="storeOpenTime">店舗の開店時間:</label>
+        <input type="text" id="storeOpenTime" placeholder="例: 08:00" required><br>
+        <label for="storeCloseTime">店舗の閉店時間:</label>
+        <input type="text" id="storeCloseTime" placeholder="例: 23:30" required><br>
         <label for="holidayPay">休日給:</label>
         <input type="number" id="holidayPay" required><br>
         <button type="submit">登録</button>
