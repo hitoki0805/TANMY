@@ -12,5 +12,13 @@ JavaScript関数のテスト用コード
 </head>
 <body>
     <h1>viewShifts.html</h1>
+    <!-- 目標金額入力フォームの追加 -->
+    <form id="earningsForm">
+        <label for="targetEarnings">目標金額（円）:</label>
+        <input type="number" id="targetEarnings" required>
+        <button type="submit">シフト提案</button>
+    </form>
+    <!-- 結果表示エリア -->
+    <div id="suggestedShifts"></div>
 </body>
 </html>
