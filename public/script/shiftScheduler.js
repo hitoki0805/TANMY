@@ -102,18 +102,22 @@ window.onload = () => {
     document.getElementById('earningsForm').addEventListener('submit', (event) => {
         event.preventDefault();
         const targetEarnings = document.getElementById('targetEarnings').value;
-        getShifts(targetEarnings);
+        const targetMonth = document.getElementById('targetMonth').value;
+        getShifts(targetEarnings, targetMonth);
     });
 };
 
-// getShifts関数に目標金額を引数として追加
-function getShifts(targetEarnings) {
-    const startDate = new Date('2024-07-01'); // シフト提案の開始日
-    const endDate = new Date('2024-07-31');   // シフト提案の終了日
+// getShifts関数に月を引数として追加
+function getShifts(targetEarnings, targetMonth) {
+    const year = targetMonth.split('-')[0];
+    const month = parseInt(targetMonth.split('-')[1], 10);
+    const startDate = new Date(Date.UTC(year, month - 1, 1)); // 選択された月の初日をUTCで設定
+    const endDate = new Date(Date.UTC(year, month, 0));      // 選択された月の最終日をUTCで設定
 
     loadRegisteredTimes(startDate, endDate).then(times => {
         // シフト提案ロジックをここに追加（現在は単に出力するだけ）
         console.log("目標金額:", targetEarnings);
+        console.log("提案期間:", startDate.toISOString().split('T')[0], "から", endDate.toISOString().split('T')[0]);
         console.log(times);
     }).catch(error => {
         console.error("エラーが発生しました:", error);
