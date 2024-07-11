@@ -5,6 +5,56 @@ import { getFirestore, getDocs, collection } from 'https://www.gstatic.com/fireb
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
+// モックデータを追加する関数
+async function getUnavailableTimes(sleepStartTime, sleepEndTime, startDate, endDate, storeOpenTime, storeCloseTime) {
+    // 開始日と終了日の間の日付を生成
+    const dateRange = [];
+    let currentDate = new Date(startDate);
+    while (currentDate <= endDate) {
+        dateRange.push(currentDate.toISOString().split('T')[0]);
+        currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    const sleepTimes = dateRange.map(date => {
+        if (sleepStartTime > sleepEndTime) { // 日付を跨ぐ場合
+            return [
+                { date: date, startTime: sleepStartTime, endTime: '24:00' },
+                { date: new Date(new Date(date).getTime() + 86400000).toISOString().split('T')[0], startTime: '00:00', endTime: sleepEndTime }
+            ];
+        } else {
+            return { date: date, startTime: sleepStartTime, endTime: sleepEndTime };
+        }
+    }).flat();
+
+    const closeTimes = dateRange.map(date => {
+        if (storeCloseTime > storeOpenTime) { // 日付を跨ぐ場合
+            return [
+                { date: date, startTime: storeCloseTime, endTime: '24:00' },
+                { date: new Date(new Date(date).getTime() + 86400000).toISOString().split('T')[0], startTime: '00:00', endTime: storeOpenTime }
+            ];
+        } else {
+            return { date: date, startTime: storeCloseTime, endTime: storeOpenTime };
+        }
+    }).flat();
+
+    const allTimes = [
+        { date: '2024-06-01', startTime: '09:00', endTime: '12:00' },
+        { date: '2024-06-05', startTime: '09:00', endTime: '12:00' },
+        { date: '2024-06-10', startTime: '14:00', endTime: '16:00' },
+        { date: '2024-06-15', startTime: '18:00', endTime: '20:00' },
+        // 他のモックデータを追加
+        ...sleepTimes,
+        ...closeTimes
+    ];
+
+    // 日時でソート
+    return allTimes.sort((a, b) => {
+        let dateTimeA = new Date(`${a.date}T${a.startTime}`);
+        let dateTimeB = new Date(`${b.date}T${b.startTime}`);
+        return dateTimeA - dateTimeB;
+    });
+}
+
 async function loadRegisteredTimes(startDate, endDate) {
     const querySnapshot = await getDocs(collection(db, "unavailableTimes"));
     const registeredTimes = [];
@@ -47,12 +97,29 @@ async function loadRegisteredTimes(startDate, endDate) {
     return registeredTimes;
 }
 
-// 使用例
-const startDate = new Date('2024-07-01'); // シフト提案の開始日
-const endDate = new Date('2024-07-31');   // シフト提案の終了日
+// ページ読み込み時の関数を変更
+window.onload = () => {
+    document.getElementById('earningsForm').addEventListener('submit', (event) => {
+        event.preventDefault();
+        const targetEarnings = document.getElementById('targetEarnings').value;
+        const targetMonth = document.getElementById('targetMonth').value;
+        getShifts(targetEarnings, targetMonth);
+    });
+};
 
-loadRegisteredTimes(startDate, endDate).then(times => {
-    console.log(times);
-}).catch(error => {
-    console.error("エラーが発生しました:", error);
-});
+// getShifts関数に月を引数として追加
+function getShifts(targetEarnings, targetMonth) {
+    const year = targetMonth.split('-')[0];
+    const month = parseInt(targetMonth.split('-')[1], 10);
+    const startDate = new Date(Date.UTC(year, month - 1, 1)); // 選択された月の初日をUTCで設定
+    const endDate = new Date(Date.UTC(year, month, 0));      // 選択された月の最終日をUTCで設定
+
+    loadRegisteredTimes(startDate, endDate).then(times => {
+        // シフト提案ロジックをここに追加（現在は単に出力するだけ）
+        console.log("目標金額:", targetEarnings);
+        console.log("提案期間:", startDate.toISOString().split('T')[0], "から", endDate.toISOString().split('T')[0]);
+        console.log(times);
+    }).catch(error => {
+        console.error("エラーが発生しました:", error);
+    });
+}
