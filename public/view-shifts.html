@@ -20,6 +20,15 @@ JavaScript関数のテスト用コード
         <br>
         <label for="targetEarnings">目標金額（円）:</label>
         <input type="number" id="targetEarnings" required>
+        <br>
+        <!-- 生活習慣を選択するための入力フィールドを追加 -->
+        <label for="lifestyle">生活習慣:</label>
+        <select id="lifestyle" required>
+            <option value="morning">朝型</option>
+            <option value="night">夜型</option>
+            <option value="normal" selected>普通</option>
+        </select>
+        <br>
         <button type="submit">シフト提案</button>
     </form>
     <!-- 結果表示エリア -->
