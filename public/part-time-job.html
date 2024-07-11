@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>アルバイト情報登録</title>
-    <!-- Firebase SDKのモジュールベースのインポート -->
+    <link rel="stylesheet" href="../public/css/part-time-job.css">
     <script type="module">
         import { firebaseConfig } from './APIkeys/firebaseAPI.js';
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js';
@@ -12,25 +12,29 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        document.getElementById('jobForm').addEventListener('submit', async function(event) {
-            event.preventDefault();
-            const jobData = {
-                name: document.getElementById('name').value,
-                hourlyWage: Number(document.getElementById('hourlyWage').value),
-                nightWage: Number(document.getElementById('nightWage').value),
-                nightHours: document.getElementById('nightHours').value,
-                holidayPay: Number(document.getElementById('holidayPay').value)
-            };
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('jobForm').addEventListener('submit', async function(event) {
+                event.preventDefault();
+                const jobData = {
+                    name: document.getElementById('name').value,
+                    hourlyWage: Number(document.getElementById('hourlyWage').value),
+                    nightWage: Number(document.getElementById('nightWage').value),
+                    nightHours: document.getElementById('nightHours').value,
+                    holidayPay: Number(document.getElementById('holidayPay').value)
+                };
 
-            try {
-                await addDoc(collection(db, "jobs"), jobData);
-                alert('登録が完了しました。');
-                document.getElementById('jobForm').reset();
-                loadJobs();  // データを再読み込み
-            } catch (error) {
-                console.error('エラーが発生しました: ', error);
-                alert('エラーが発生しました。詳細: ' + error.message);
-            }
+                try {
+                    await addDoc(collection(db, "jobs"), jobData);
+                    alert('登録が完了しました。');
+                    document.getElementById('jobForm').reset();
+                    loadJobs();  // データを再読み込み
+                } catch (error) {
+                    console.error('エラーが発生しました: ', error);
+                    alert('エラーが発生しました。詳細: ' + error.message);
+                }
+            });
+
+            loadJobs();
         });
 
         async function loadJobs() {
@@ -38,11 +42,20 @@
             const querySnapshot = await getDocs(jobsQuery);
             const jobsList = document.getElementById('jobsList');
             jobsList.innerHTML = '';  // リストをクリア
+
+            const colors = ['#FFCDD2', '#E1BEE7', '#BBDEFB', '#C8E6C9', '#FFECB3', '#F8BBD0', '#D1C4E9', '#C5CAE9', '#DCEDC8', '#FFE082'];  // 色のリスト
+            let colorIndex = 0;
+
             querySnapshot.forEach((doc) => {
                 const job = doc.data();
                 const listItem = document.createElement('li');
                 listItem.innerHTML = `バイト先の名称：${job.name}<br>基本給：${job.hourlyWage}円<br>深夜給：${job.nightWage}円<br>深夜時間：${job.nightHours}<br>休日給：${job.holidayPay}円`;
                 listItem.style.marginBottom = "20px";  // 項目間の隙間を設定
+                listItem.style.backgroundColor = colors[colorIndex % colors.length];  // 色を設定
+                listItem.style.padding = "10px";  // 内側の余白を設定
+                listItem.style.borderRadius = "5px";  // 角を丸くする
+                colorIndex++;
+
                 const deleteButton = document.createElement('button');
                 deleteButton.textContent = '削除';
                 deleteButton.style.display = "block";  // ボタンをブロック要素として表示
@@ -57,29 +70,29 @@
             await deleteDoc(doc(db, "jobs", id));
             loadJobs();  // データを再読み込み
         }
-
-        // 初期読み込み時に実行
-        loadJobs();
     </script>
 </head>
 <body>
-    <h1>アルバイト情報登録</h1>
-    <form id="jobForm">
-        <label for="name">アルバイト先の名称:</label>
-        <input type="text" id="name" required><br>
-        <label for="hourlyWage">時給:</label>
-        <input type="number" id="hourlyWage" required><br>
-        <label for="nightWage">深夜給:</label>
-        <input type="number" id="nightWage" required><br>
-        <label for="nightHours">深夜給発生時間帯:</label>
-        <input type="text" id="nightHours" placeholder="例: 22時～5時" required><br>
-        <label for="holidayPay">休日給:</label>
-        <input type="number" id="holidayPay" required><br>
-        <button type="submit">登録</button>
-    </form>
-    <h2>登録済みのアルバイト情報</h2>
-    <ul id="jobsList"></ul>
-    <!-- 前のページに戻るボタン -->
-    <button onclick="location.href='mainpage.html'" style="margin-top: 20px;">前のページに戻る</button>
+    <header>
+        <h1>アルバイト情報登録</h1>
+    </header>
+    <div class="container">
+        <form id="jobForm">
+            <label for="name">アルバイト先の名称:</label>
+            <input type="text" id="name" required>
+            <label for="hourlyWage">時給:</label>
+            <input type="number" id="hourlyWage" required>
+            <label for="nightWage">深夜給:</label>
+            <input type="number" id="nightWage" required>
+            <label for="nightHours">深夜給発生時間帯:</label>
+            <input type="text" id="nightHours" placeholder="例: 22時～5時" required>
+            <label for="holidayPay">休日給:</label>
+            <input type="number" id="holidayPay" required>
+            <button type="submit">登録</button>
+        </form>
+        <h2>登録済みのアルバイト情報</h2>
+        <ul id="jobsList"></ul>
+        <a href="mainpage.html" class="back-button">前のページに戻る</a>
+    </div>
 </body>
 </html>

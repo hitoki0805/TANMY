@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>バイト不可時間登録</title>
-    <!-- Firebase SDKのモジュールベースのインポート -->
+    <link rel="stylesheet" href="../public/css/register-unavailable.css">
     <script type="module">
         import { firebaseConfig } from './APIkeys/firebaseAPI.js';
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js';
@@ -12,60 +12,71 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        document.getElementById('unavailableForm').addEventListener('submit', async function(event) {
-            event.preventDefault();
-            const recurrence = document.getElementById('recurrence').value;
-            const date = document.getElementById('date').value;
-            const weekday = getWeekday(date);
-            const name = document.getElementById('name').value || '予定'; // 名称が入力されていない場合は「予定」
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('unavailableForm').addEventListener('submit', async function(event) {
+                event.preventDefault();
+                const recurrence = document.getElementById('recurrence').value;
+                const date = document.getElementById('date').value;
+                const weekday = getWeekday(date);
+                const name = document.getElementById('name').value || '予定'; // 名称が入力されていない場合は「予定」
 
-            const unavailableData = {
-                name: name, // 新しいフィールド
-                date: date,
-                startTime: document.getElementById('startTime').value,
-                endTime: document.getElementById('endTime').value,
-                recurrence: recurrence,
-                weekday: weekday // 新しいフィールド
-            };
+                const unavailableData = {
+                    name: name, // 新しいフィールド
+                    date: date,
+                    startTime: document.getElementById('startTime').value,
+                    endTime: document.getElementById('endTime').value,
+                    recurrence: recurrence,
+                    weekday: weekday // 新しいフィールド
+                };
 
-            try {
-                await addDoc(collection(db, "unavailableTimes"), unavailableData);
-                alert('登録が完了しました。');
-                document.getElementById('unavailableForm').reset();
-                loadUnavailableTimes();  // データを再読み込み
-            } catch (error) {
-                console.error('エラーが発生しました: ', error);
-                alert('エラーが発生しました。詳細: ' + error.message);
-            }
+                try {
+                    await addDoc(collection(db, "unavailableTimes"), unavailableData);
+                    alert('登録が完了しました。');
+                    document.getElementById('unavailableForm').reset();
+                    loadUnavailableTimes();  // データを再読み込み
+                } catch (error) {
+                    console.error('エラーが発生しました: ', error);
+                    alert('エラーが発生しました。詳細: ' + error.message);
+                }
+            });
+
+            loadUnavailableTimes();
         });
 
         async function loadUnavailableTimes() {
             const querySnapshot = await getDocs(query(collection(db, "unavailableTimes")));
             const timesList = document.getElementById('timesList');
             timesList.innerHTML = '';  // リストをクリア
+
+            const colors = ['#F0F4C3', '#FFAB91', '#BCAAA4', '#CE93D8', '#81D4FA', '#F4FF81', '#FFD740', '#FF8A65', '#A1887F', '#9575CD'];  // 色のリスト
+            let colorIndex = 0;
+
             querySnapshot.forEach((docSnapshot) => {
                 const time = docSnapshot.data();
                 const listItem = document.createElement('li');
-                listItem.innerHTML = `名称: ${time.name},<br>日付: ${time.date},<br>開始時間: ${time.startTime}, <br>終了時間: ${time.endTime},<br>定期: ${time.recurrence}`;
+                listItem.innerHTML = `名称: ${time.name},<br>日付: ${time.date},<br>開始時間: ${time.startTime},<br>終了時間: ${time.endTime},<br>定期: ${time.recurrence}`;
                 if (time.recurrence === 'weekly') {
                     listItem.innerHTML += `,<br>曜日: ${time.weekday}`; // 曜日情報を追加
                 }
                 listItem.innerHTML += `<br>`;
+                listItem.style.backgroundColor = colors[colorIndex % colors.length];  // 色を設定
+                listItem.style.padding = "10px";  // 内側の余白を設定
+                listItem.style.borderRadius = "5px";  // 角を丸くする
+                listItem.style.marginBottom = "20px";  // 項目間の隙間を設定
+                colorIndex++;
+                
                 const deleteButton = document.createElement('button');
-                deleteButton.textContent = '削除';
+                deleteButton.textContent = '削除'; 
                 deleteButton.addEventListener('click', async () => {
                     await deleteDoc(doc(db, "unavailableTimes", docSnapshot.id));
                     loadUnavailableTimes();  // データを再読み込み
                 });
+                
                 listItem.appendChild(deleteButton);
                 timesList.appendChild(listItem);
+                
             });
         }
-
-        // 初期読み込み時に実行
-        window.addEventListener('DOMContentLoaded', (event) => {
-            loadUnavailableTimes();
-        });
 
         // 日付から曜日を取得する関数
         function getWeekday(dateString) {
@@ -83,29 +94,32 @@
     </script>
 </head>
 <body>
-    <h1>予定の登録</h1>
-    <form id="unavailableForm">
-        <label for="name">名称:</label>
-        <input type="text" id="name"><br> <!-- 名称の入力欄 -->
-        <label for="date">日付:</label>
-        <input type="date" id="date" required><br>
-        <span id="weekdayDisplay">曜日: </span><br> <!-- 曜日を表示するフィールド -->
-        <label for="startTime">開始時間:</label>
-        <input type="time" id="startTime" required><br>
-        <label for="endTime">終了時間:</label>
-        <input type="time" id="endTime" required><br>
-        <label for="recurrence">定期:</label>
-        <select id="recurrence" required>
-            <option value="none">なし</option>
-            <option value="daily">毎日</option>
-            <option value="weekly">毎週</option>
-            <option value="monthly">毎月</option>
-        </select><br>
-        <button type="submit">登録</button>
-    </form>
-    <h2>登録済みの予定</h2>
-    <ul id="timesList"></ul>
-    <!-- 前のページに戻るボタン -->
-    <button onclick="location.href='mainpage.html'" style="margin-top: 20px;">前のページに戻る</button>
+    <header>
+        <h1>予定の登録</h1>
+    </header>
+    <div class="container">
+        <form id="unavailableForm">
+            <label for="name">名称:</label>
+            <input type="text" id="name"><br> <!-- 名称の入力欄 -->
+            <label for="date">日付:</label>
+            <input type="date" id="date" required><br>
+            <span id="weekdayDisplay">曜日: </span><br> <!-- 曜日を表示するフィールド -->
+            <label for="startTime">開始時間:</label>
+            <input type="time" id="startTime" required><br>
+            <label for="endTime">終了時間:</label>
+            <input type="time" id="endTime" required><br>
+            <label for="recurrence">定期:</label>
+            <select id="recurrence" required>
+                <option value="none">なし</option>
+                <option value="daily">毎日</option>
+                <option value="weekly">毎週</option>
+                <option value="monthly">毎月</option>
+            </select><br>
+            <button type="submit">登録</button>
+        </form>
+        <h2>登録済みの予定</h2>
+        <ul id="timesList"></ul>
+        <a href="mainpage.html" class="back-button">前のページに戻る</a>
+    </div>
 </body>
 </html>
