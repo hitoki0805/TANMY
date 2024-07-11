@@ -122,27 +122,34 @@ window.onload = () => {
         console.error("アルバイト情報の取得に失敗しました:", error);
     });
 
-    // // 利用不可能な時間を取得してコンソールに表示
-    // getUnavailableTimes('07:00', '23:00', '2024-07-01', '2024-07-31', '08:00', '22:00').then(times => {
-    //     console.log("取得した利用不可能な時間:", times);
-    // }).catch(error => {
-    //     console.error("利用不可能な時間の取得に失敗しました:", error);
-    // });
-
     document.getElementById('earningsForm').addEventListener('submit', (event) => {
         event.preventDefault();
         const targetEarnings = document.getElementById('targetEarnings').value;
         const targetMonth = document.getElementById('targetMonth').value;
-        getShifts(targetEarnings, targetMonth);
+        const lifestyle = document.getElementById('lifestyle').value; // 生活習慣の選択を取得
+        getShifts(targetEarnings, targetMonth, lifestyle);
     });
 };
 
 // getShifts関数に月を引数として追加
-function getShifts(targetEarnings, targetMonth) {
+function getShifts(targetEarnings, targetMonth, lifestyle) {
     const year = targetMonth.split('-')[0];
     const month = parseInt(targetMonth.split('-')[1], 10);
     const startDate = new Date(Date.UTC(year, month - 1, 1)); // 選択された月の初日をUTCで設定
     const endDate = new Date(Date.UTC(year, month, 0));      // 選択された月の最終日をUTCで設定
+
+    // 生活習慣に基づいてsleepStartTimeとsleepEndTimeを設定
+    let sleepStartTime, sleepEndTime;
+    if (lifestyle === 'morning') {
+        sleepStartTime = '22:00';
+        sleepEndTime = '06:00';
+    } else if (lifestyle === 'night') {
+        sleepStartTime = '02:00';
+        sleepEndTime = '10:00';
+    } else {
+        sleepStartTime = '23:00';
+        sleepEndTime = '07:00';
+    }
 
     loadJobData().then(jobsData => {
         // ここでは最初のジョブの開店時間と閉店時間を使用しますが、実際には適切なロジックで選択する必要があります。
@@ -152,12 +159,8 @@ function getShifts(targetEarnings, targetMonth) {
         const newStartDate = new Date(startDate.toISOString().split('T')[0]);
         const newEndDate = new Date(endDate.toISOString().split('T')[0]);
 
-        const sleepStartTime = '23:00';
-        const sleepEndTime = '07:00';
-
         console.log(newStartDate, newEndDate)
         console.log(sleepStartTime, sleepEndTime)
-
 
         getUnavailableTimes(sleepStartTime, sleepEndTime, newStartDate, newEndDate, storeOpenTime, storeCloseTime).then(times => {
             console.log("目標金額:", targetEarnings);
@@ -168,6 +171,8 @@ function getShifts(targetEarnings, targetMonth) {
             console.log(endDate.toISOString().split('T')[0])
             console.log(storeOpenTime)
             console.log(storeCloseTime)
+
+            console.log(lifestyle)
         }).catch(error => {
             console.error("利用不可能な時間の取得に失敗しました:", error);
         });
