@@ -118,6 +118,25 @@ footer {
     bottom: 0;
 }
 
+/* ポップアップのスタイルを追加 */
+.popup {
+    position: absolute; /* 絶対位置 */
+    background-color: #fff; /* 背景色を白に設定 */
+    padding: 20px; /* 内側の余白を20pxに設定 */
+    border-radius: 5px; /* 角を丸くする */
+    box-shadow: 0 0 10px rgba(0,0,0,0.1); /* 影を追加 */
+    z-index: 10001; /* 他の要素よりも上に表示 */
+}
+
+.popup-content h3 {
+    margin-top: 0;
+}
+
+.popup-content p {
+    margin: 5px 0;
+}
+
+
 @media (max-width: 768px) {
     nav ul {
         display: flex;

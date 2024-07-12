@@ -1,11 +1,107 @@
-@charset 'UTF-8';
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
 
-.fc-day-sun { color: red; } /* 日曜日の文字を赤色に */
-.fc-day-sat { color: blue; } /* 土曜日の文字を青色に */
+body {
+    font-family: 'Roboto', sans-serif;
+    background-color: #ECEFF1;
+    color: #2C3E50;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+}
+
+header {
+    background-color: #2C3E50;
+    color: #FFFFFF;
+    padding: 0px 0;
+    text-align: center;
+    font-size: 24px;
+    width: 100%;
+    top: 0;
+    position: fixed;
+    z-index: 1000;
+}
+
+header h1 {
+    font-family: 'Roboto', sans-serif; /* 'カレンダー' 文字のフォントを設定 */
+}
+
+.container {
+    width: 90%;
+    margin: auto;
+    padding: 50px;
+    background-color: #fff;
+    border-radius: 5px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    margin-top: 120px; /* ヘッダーの高さを引いた分 */
+    text-align: center;
+}
+
+#calendar {
+    max-width: 900px;
+    width: 100%;
+    margin: auto;
+}
+
+.fc-toolbar {
+    margin-bottom: 20px;
+}
+
+.fc-day-sat .fc-daygrid-day-number,
+.fc-col-header-cell-sat {
+    color: blue;
+}
+
+.fc-day-sun .fc-daygrid-day-number,
+.fc-col-header-cell-sun,
 .holiday .fc-daygrid-day-number {
     color: red;
 }
-.holiday .fc-event-main {
-    background-color: transparent !important; /* 背景色を透明に */
-    border: none !important; /* 枠線を消す */
+
+.fc-event {
+    cursor: pointer;
 }
+
+.fc-popover {
+    z-index: 10000;
+}
+
+/* ポップアップのスタイルを追加 */
+.popup {
+    position: absolute; /* 絶対位置 */
+    background-color: #fff; /* 背景色を白に設定 */
+    padding: 20px; /* 内側の余白を20pxに設定 */
+    border-radius: 5px; /* 角を丸くする */
+    box-shadow: 0 0 10px rgba(0,0,0,0.1); /* 影を追加 */
+    z-index: 10001; /* 重ね順を設定して他の要素よりも上に表示 */
+}
+
+.popup-content h3 {
+    margin-top: 0;
+}
+
+.popup-content p {
+    margin: 5px 0;
+}
+
+.back-button {
+    margin-top: 20px;
+    padding: 10px 20px;
+    background-color: #2C3E50;
+    color: #FFFFFF;
+    border: none;
+    border-radius: 5px;
+    text-decoration: none;
+    display: inline-block;
+    text-align: center;
+}
+
+.back-button:hover {
+    background-color: #1A252F;
+    color: #FFFFFF;
+}
+
+

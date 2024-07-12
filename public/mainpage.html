@@ -76,6 +76,21 @@
                 editable: true,
                 dayMaxEvents: true, // イベントが多い場合には+ボタンで表示
                 events: [...getEventDates(holidaysData), ...unavailableTimes],
+                eventClick: function(info) {
+                    if (!info.event.extendedProps.holiday) { // 祝日でないイベントのみ詳細を表示
+                        var eventObj = info.event;
+                        var content = `
+                            <div class="popup-content">
+                                <h3>${eventObj.title}</h3>
+                                <p><strong>開始:</strong> ${eventObj.start.toLocaleString()}</p>
+                                <p><strong>終了:</strong> ${eventObj.end ? eventObj.end.toLocaleString() : 'なし'}</p>
+                            </div>
+                        `;
+                        // イベントの位置を取得してポップアップを表示
+                        const rect = info.el.getBoundingClientRect();
+                        showPopup(content, rect.right, rect.top);
+                    }
+                },
                 eventContent: function (arg) {
                     // 祝日の日付にクラスを追加
                     if (arg.event.extendedProps.holiday) {
@@ -157,6 +172,33 @@
                 }
             });
             return unavailableTimes;
+        }
+
+        function showPopup(content, x, y) {
+            // 既存のポップアップがあれば削除
+            const existingPopup = document.querySelector('.popup');
+            if (existingPopup) {
+                existingPopup.remove();
+            }
+
+            const popup = document.createElement('div');
+            popup.className = 'popup';
+            popup.innerHTML = content;
+            document.body.appendChild(popup);
+
+            // ポップアップの位置を設定
+            popup.style.left = `${x}px`;
+            popup.style.top = `${y}px`;
+
+            // ポップアップ以外をクリックしたときにポップアップを閉じる
+            setTimeout(() => {
+                document.addEventListener('click', function removePopup(event) {
+                    if (!popup.contains(event.target)) {
+                        popup.remove();
+                        document.removeEventListener('click', removePopup);
+                    }
+                });
+            }, 0);
         }
     </script>
 </body>
