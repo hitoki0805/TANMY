@@ -8,6 +8,7 @@ const db = getFirestore(app);
 // モックデータを追加する関数
 async function getUnavailableTimes(sleepStartTime, sleepEndTime, startDate, endDate, storeOpenTime, storeCloseTime) {
     // 開始日と終了日の間の日付を生成
+    console.log("getUnavailableTimesが実行されました。")
     const dateRange = [];
     let currentDate = new Date(startDate);
     while (currentDate <= endDate) {
@@ -16,6 +17,7 @@ async function getUnavailableTimes(sleepStartTime, sleepEndTime, startDate, endD
     }
 
     const sleepTimes = dateRange.map(date => {
+        // console.log(`Processing sleep time for date: ${date} with sleepStartTime: ${sleepStartTime} and sleepEndTime: ${sleepEndTime}`);
         if (sleepStartTime > sleepEndTime) { // 日付を跨ぐ場合
             return [
                 { date: date, startTime: sleepStartTime, endTime: '24:00' },
@@ -27,6 +29,7 @@ async function getUnavailableTimes(sleepStartTime, sleepEndTime, startDate, endD
     }).flat();
 
     const closeTimes = dateRange.map(date => {
+        // console.log(`Processing close time for date: ${date} with storeOpenTime: ${storeOpenTime} and storeCloseTime: ${storeCloseTime}`);
         if (storeCloseTime > storeOpenTime) { // 日付を跨ぐ場合
             return [
                 { date: date, startTime: storeCloseTime, endTime: '24:00' },
@@ -37,12 +40,14 @@ async function getUnavailableTimes(sleepStartTime, sleepEndTime, startDate, endD
         }
     }).flat();
 
+    console.log("Sleep times:", sleepTimes);
+    console.log("Close times:", closeTimes);
+
+    // データベースから取得した予定を含める
+    const registeredTimes = await loadRegisteredTimes(new Date(startDate), new Date(endDate));
+
     const allTimes = [
-        { date: '2024-06-01', startTime: '09:00', endTime: '12:00' },
-        { date: '2024-06-05', startTime: '09:00', endTime: '12:00' },
-        { date: '2024-06-10', startTime: '14:00', endTime: '16:00' },
-        { date: '2024-06-15', startTime: '18:00', endTime: '20:00' },
-        // 他のモックデータを追加
+        ...registeredTimes,
         ...sleepTimes,
         ...closeTimes
     ];
@@ -56,6 +61,7 @@ async function getUnavailableTimes(sleepStartTime, sleepEndTime, startDate, endD
 }
 
 async function loadRegisteredTimes(startDate, endDate) {
+    console.log("loadRegisteredTimesを実行")
     const querySnapshot = await getDocs(collection(db, "unavailableTimes"));
     const registeredTimes = [];
 
@@ -97,29 +103,80 @@ async function loadRegisteredTimes(startDate, endDate) {
     return registeredTimes;
 }
 
-// ページ読み込み時の関数を変更
+// アルバイト情報を取得する関数を追加
+async function loadJobData() {
+    const jobsCollection = collection(db, "jobs");
+    const snapshot = await getDocs(jobsCollection);
+    const jobsData = [];
+    snapshot.forEach(doc => {
+        jobsData.push(doc.data());
+    });
+    return jobsData;
+}
+
+// ページ読み込み時にアルバイト情報と利用不可能な時間を取得してコンソールに表示するように変更
 window.onload = () => {
+    loadJobData().then(data => {
+        console.log("取得したアルバイト情報:", data);
+    }).catch(error => {
+        console.error("アルバイト情報の取得に失敗しました:", error);
+    });
+
     document.getElementById('earningsForm').addEventListener('submit', (event) => {
         event.preventDefault();
         const targetEarnings = document.getElementById('targetEarnings').value;
         const targetMonth = document.getElementById('targetMonth').value;
-        getShifts(targetEarnings, targetMonth);
+        const lifestyle = document.getElementById('lifestyle').value; // 生活習慣の選択を取得
+        getShifts(targetEarnings, targetMonth, lifestyle);
     });
 };
 
 // getShifts関数に月を引数として追加
-function getShifts(targetEarnings, targetMonth) {
+function getShifts(targetEarnings, targetMonth, lifestyle) {
     const year = targetMonth.split('-')[0];
     const month = parseInt(targetMonth.split('-')[1], 10);
     const startDate = new Date(Date.UTC(year, month - 1, 1)); // 選択された月の初日をUTCで設定
     const endDate = new Date(Date.UTC(year, month, 0));      // 選択された月の最終日をUTCで設定
 
-    loadRegisteredTimes(startDate, endDate).then(times => {
-        // シフト提案ロジックをここに追加（現在は単に出力するだけ）
-        console.log("目標金額:", targetEarnings);
-        console.log("提案期間:", startDate.toISOString().split('T')[0], "から", endDate.toISOString().split('T')[0]);
-        console.log(times);
+    // 生活習慣に基づいてsleepStartTimeとsleepEndTimeを設定
+    let sleepStartTime, sleepEndTime;
+    if (lifestyle === 'morning') {
+        sleepStartTime = '22:00';
+        sleepEndTime = '06:00';
+    } else if (lifestyle === 'night') {
+        sleepStartTime = '02:00';
+        sleepEndTime = '10:00';
+    } else {
+        sleepStartTime = '23:00';
+        sleepEndTime = '07:00';
+    }
+
+    loadJobData().then(jobsData => {
+        // ここでは最初のジョブの開店時間と閉店時間を使用しますが、実際には適切なロジックで選択する必要があります。
+        const storeOpenTime = jobsData[0].storeOpenTime;
+        const storeCloseTime = jobsData[0].storeCloseTime;
+
+        const newStartDate = new Date(startDate.toISOString().split('T')[0]);
+        const newEndDate = new Date(endDate.toISOString().split('T')[0]);
+
+        console.log(newStartDate, newEndDate)
+        console.log(sleepStartTime, sleepEndTime)
+
+        getUnavailableTimes(sleepStartTime, sleepEndTime, newStartDate, newEndDate, storeOpenTime, storeCloseTime).then(times => {
+            console.log("目標金額:", targetEarnings);
+            console.log("提案期間:", startDate.toISOString().split('T')[0], "から", endDate.toISOString().split('T')[0]);
+            console.log("取得した利用不可能な時間:", times);
+
+            console.log(startDate.toISOString().split('T')[0])
+            console.log(endDate.toISOString().split('T')[0])
+            console.log(storeOpenTime)
+            console.log(storeCloseTime)
+
+            console.log(lifestyle)
+        }).catch(error => {
+            console.error("利用不可能な時間の取得に失敗しました:", error);
+        });
     }).catch(error => {
-        console.error("エラーが発生しました:", error);
+        console.error("アルバイト情報の取得に失敗しました:", error);
     });
 }
