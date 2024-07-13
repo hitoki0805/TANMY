@@ -59,7 +59,7 @@ async function getUnavailableTimes(sleepStartTime, sleepEndTime, startDate, endD
 }
 
 async function loadRegisteredTimes(startDate, endDate) {
-    console.log("loadRegisteredTimesを実行")
+    // console.log("loadRegisteredTimesを実行")
     const querySnapshot = await getDocs(collection(db, "unavailableTimes"));
     const registeredTimes = [];
 
@@ -130,7 +130,7 @@ async function proposeShifts(sleepStartTime, sleepEndTime, startDate, endDate, s
         let dayShifts = [];
         let totalHours = 0; // その日の合計労働時間を追跡
 
-        console.log(dayOpenTime)
+        // console.log(dayOpenTime)
 
         // 当日の予定されている時間を除外
         const dayBlockedTimes = blockedTimes.filter(time => time.date === currentDate.toISOString().split('T')[0]);
@@ -150,7 +150,7 @@ async function proposeShifts(sleepStartTime, sleepEndTime, startDate, endDate, s
                 }
             }
             currentTime = new Date(Math.max(blockEnd.getTime(), dayOpenTime.getTime())); // 開店時間とblockEndの遅い方を次の開始時間とする
-            console.log(blockEnd)
+            // console.log(blockEnd)
         });
 
         // 最後のブロック後の時間を追加
@@ -169,7 +169,7 @@ async function proposeShifts(sleepStartTime, sleepEndTime, startDate, endDate, s
         currentDate.setDate(currentDate.getDate() + 1); // 次の日に進む
     }
 
-    console.log("提案されたシフト:", availableShifts);
+    console.log("シフト候補:", availableShifts);
     return availableShifts;
 }
 
@@ -250,7 +250,12 @@ window.onload = () => {
         const targetEarnings = document.getElementById('targetEarnings').value;
         const targetMonth = document.getElementById('targetMonth').value;
         const lifestyle = document.getElementById('lifestyle').value; // 生活習慣の選択を取得
-        getShifts(targetEarnings, targetMonth, lifestyle);
+        const preferredDays = Array.from(document.getElementById('preferredDays').selectedOptions).map(option => parseInt(option.value)); // 優先曜日の選択を取得
+        
+        // 選択された曜日をコンソールに表示
+        console.log("選択された優先曜日:", preferredDays);
+
+        getShifts(targetEarnings, targetMonth, lifestyle, preferredDays);
     });
 };
 
