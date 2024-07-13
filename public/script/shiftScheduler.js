@@ -17,7 +17,6 @@ async function getUnavailableTimes(sleepStartTime, sleepEndTime, startDate, endD
     }
 
     const sleepTimes = dateRange.map(date => {
-        // console.log(`Processing sleep time for date: ${date} with sleepStartTime: ${sleepStartTime} and sleepEndTime: ${sleepEndTime}`);
         if (sleepStartTime > sleepEndTime) { // 日付を跨ぐ場合
             return [
                 { date: date, startTime: sleepStartTime, endTime: '24:00' },
@@ -29,7 +28,6 @@ async function getUnavailableTimes(sleepStartTime, sleepEndTime, startDate, endD
     }).flat();
 
     const closeTimes = dateRange.map(date => {
-        // console.log(`Processing close time for date: ${date} with storeOpenTime: ${storeOpenTime} and storeCloseTime: ${storeCloseTime}`);
         if (storeCloseTime > storeOpenTime) { // 日付を跨ぐ場合
             return [
                 { date: date, startTime: storeCloseTime, endTime: '24:00' },
@@ -114,6 +112,86 @@ async function loadJobData() {
     return jobsData;
 }
 
+// メイン関数
+async function proposeShifts(sleepStartTime, sleepEndTime, startDate, endDate, storeOpenTime, storeCloseTime, hourlyWage, nightWage, holidayPay) {
+    const blockedTimes = await getUnavailableTimes(sleepStartTime, sleepEndTime, startDate, endDate, storeOpenTime, storeCloseTime, hourlyWage, nightWage, holidayPay);
+    console.log("登録されている予定", blockedTimes);
+
+    // 利用可能なシフトを提案
+    let availableShifts = [];
+    let currentDate = new Date(`${startDate.toISOString().split('T')[0]}T${storeOpenTime}`);
+    if (currentDate < startDate) {
+        currentDate.setDate(currentDate.getDate() + 1); // 開店時間が指定された開始日より前なら、日付を1日進める
+    }
+
+    while (currentDate <= endDate) {
+        let dayOpenTime = new Date(`${currentDate.toISOString().split('T')[0]}T${storeOpenTime}`);
+        let dayCloseTime = new Date(`${currentDate.toISOString().split('T')[0]}T${storeCloseTime}`);
+        let dayShifts = [];
+        let totalHours = 0; // その日の合計労働時間を追跡
+
+        console.log(dayOpenTime)
+
+        // 当日の予定されている時間を除外
+        const dayBlockedTimes = blockedTimes.filter(time => time.date === currentDate.toISOString().split('T')[0]);
+        let currentTime = dayOpenTime; // 店舗の開店時間から開始
+        dayBlockedTimes.forEach(block => {
+            let blockStart = new Date(`${block.date}T${block.startTime}`);
+            let blockEnd = new Date(`${block.date}T${block.endTime}`);
+            if (currentTime < blockStart) {
+                let shiftDuration = (blockStart - currentTime) / 3600000; // 時間単位で変換
+                if (totalHours + shiftDuration > 8) {
+                    shiftDuration = 8 - totalHours; // 8時間を超えないように調整
+                    blockStart = new Date(currentTime.getTime() + shiftDuration * 3600000);
+                }
+                if (shiftDuration > 0) {
+                    dayShifts.push({ start: currentTime, end: blockStart });
+                    totalHours += shiftDuration;
+                }
+            }
+            currentTime = new Date(Math.max(blockEnd.getTime(), dayOpenTime.getTime())); // 開店時間とblockEndの遅い方を次の開始時間とする
+            console.log(blockEnd)
+        });
+
+        // 最後のブロック後の時間を追加
+        if (currentTime < dayCloseTime && totalHours < 8) {
+            let remainingHours = 8 - totalHours;
+            let potentialEndTime = new Date(currentTime.getTime() + remainingHours * 3600000);
+            if (potentialEndTime > dayCloseTime) {
+                potentialEndTime = dayCloseTime;
+            }
+            if (currentTime < potentialEndTime) {
+                dayShifts.push({ start: currentTime, end: potentialEndTime });
+            }
+        }
+
+        availableShifts = availableShifts.concat(dayShifts);
+        currentDate.setDate(currentDate.getDate() + 1); // 次の日に進む
+    }
+
+    console.log("提案されたシフト:", availableShifts);
+    return availableShifts;
+}
+
+// シフトをページに表示する関数を追加
+function displayShifts(shifts) {
+    const suggestedShiftsDiv = document.getElementById('suggestedShifts');
+    suggestedShiftsDiv.innerHTML = ''; // 既存の内容をクリア
+
+    if (shifts.length === 0) {
+        suggestedShiftsDiv.innerHTML = '<p>提案されたシフトはありません。</p>';
+        return;
+    }
+
+    const ul = document.createElement('ul');
+    shifts.forEach(shift => {
+        const li = document.createElement('li');
+        li.textContent = `開始: ${shift.start.toLocaleString()}, 終了: ${shift.end.toLocaleString()}`;
+        ul.appendChild(li);
+    });
+    suggestedShiftsDiv.appendChild(ul);
+}
+
 // ページ読み込み時にアルバイト情報と利用不可能な時間を取得してコンソールに表示するように変更
 window.onload = () => {
     loadJobData().then(data => {
@@ -155,6 +233,9 @@ function getShifts(targetEarnings, targetMonth, lifestyle) {
         // ここでは最初のジョブの開店時間と閉店時間を使用しますが、実際には適切なロジックで選択する必要があります。
         const storeOpenTime = jobsData[0].storeOpenTime;
         const storeCloseTime = jobsData[0].storeCloseTime;
+        const hourlyWage = jobsData[0].hourlyWage;
+        const nightWage = jobsData[0].nightWage;
+        const holidayPay = jobsData[0].holidayPay;
 
         const newStartDate = new Date(startDate.toISOString().split('T')[0]);
         const newEndDate = new Date(endDate.toISOString().split('T')[0]);
@@ -162,7 +243,7 @@ function getShifts(targetEarnings, targetMonth, lifestyle) {
         console.log(newStartDate, newEndDate)
         console.log(sleepStartTime, sleepEndTime)
 
-        getUnavailableTimes(sleepStartTime, sleepEndTime, newStartDate, newEndDate, storeOpenTime, storeCloseTime).then(times => {
+        getUnavailableTimes(sleepStartTime, sleepEndTime, newStartDate, newEndDate, storeOpenTime, storeCloseTime, hourlyWage, nightWage, holidayPay).then(times => {
             console.log("目標金額:", targetEarnings);
             console.log("提案期間:", startDate.toISOString().split('T')[0], "から", endDate.toISOString().split('T')[0]);
             console.log("取得した利用不可能な時間:", times);
@@ -173,6 +254,57 @@ function getShifts(targetEarnings, targetMonth, lifestyle) {
             console.log(storeCloseTime)
 
             console.log(lifestyle)
+
+            console.log("proposeShiftsの実行を開始します")
+            proposeShifts(sleepStartTime, sleepEndTime, startDate, endDate, storeOpenTime, storeCloseTime, hourlyWage, nightWage, holidayPay, hourlyWage, nightWage, holidayPay)
+            .then(availableShifts => {
+                console.log("proposeShiftsの実行を開始しました")
+                // 効率よく目標金額に達成するためのシフトを計算
+                let totalEarnings = 0;
+                let selectedShifts = [];
+                availableShifts.forEach(shift => {
+                    let shiftStart = shift.start;
+                    let shiftEnd = shift.end;
+                    let shiftDuration = (shiftEnd - shiftStart) / 3600000; // 時間単位で変換
+                    let shiftEarnings = 0;
+        
+                    // 深夜給と休日給の計算
+                    let currentHour = new Date(shiftStart);
+                    while (currentHour < shiftEnd) {
+                        let nextHour = new Date(currentHour.getTime() + 3600000);
+                        if (nextHour > shiftEnd) {
+                            nextHour = shiftEnd;
+                        }
+                        let hourDuration = (nextHour - currentHour) / 3600000;
+        
+                        // 深夜給の判定
+                        if (currentHour.getHours() >= 22 || currentHour.getHours() < 5) {
+                            shiftEarnings += hourDuration * nightWage;
+                        } else {
+                            shiftEarnings += hourDuration * hourlyWage;
+                        }
+        
+                        // 休日給の判定（土曜日または日曜日）
+                        if (currentHour.getDay() === 0 || currentHour.getDay() === 6) {
+                            shiftEarnings += hourDuration * (holidayPay - hourlyWage);
+                        }
+        
+                        currentHour = new Date(currentHour.getTime() + 3600000);
+                    }
+        
+                    if (totalEarnings <= targetEarnings) {
+                        selectedShifts.push(shift);
+                        totalEarnings += shiftEarnings;
+                    }
+                });
+        
+                console.log("提案されたシフト:", selectedShifts);
+                console.log("合計の稼ぎ:", totalEarnings);
+                displayShifts(selectedShifts); // シフトを表示
+            })
+            .catch(error => {
+                console.error("エラーが発生しました:", error);
+            });
         }).catch(error => {
             console.error("利用不可能な時間の取得に失敗しました:", error);
         });
