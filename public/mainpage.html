@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>バイトシフト管理アプリ</title>
-    <link rel="stylesheet" href="..\public\css\style.css">
+    <link rel="stylesheet" href="..\public\css\mainpage.css">
     <link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.14/index.global.min.css' rel='stylesheet' />
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.14/index.global.min.js'></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script> <!-- jQueryの追加 -->
@@ -14,13 +14,13 @@
 
 <body>
     <header>
-        <h1>バイトシフト管理アプリ</h1>
+        <h1>ホーム画面</h1>
         <nav>
             <ul>
                 <li><a href="mainpage.html">ホーム</a></li>
-                <li><a href="part-time-job.html">バイト情報登録</a></li>
-                <li><a href="register-unavailable.html">予定登録</a></li>
                 <li><a href="calendar.html">カレンダー</a></li>
+                <li><a href="view-jobs.html">登録済みアルバイト情報</a></li>
+                <li><a href="view-schedule.html">登録済み予定</a></li>
             </ul>
         </nav>
     </header>
@@ -28,7 +28,7 @@
         <div class="container">
             <div>
                 <section>
-                    <h2>バイト情報登録</h2>
+                    <h2>アルバイト情報登録</h2>
                     <p>時給など、バイトに関する基本情報を登録します。</p>
                     <a class="button" href="part-time-job.html">バイト情報を登録する</a>
                 </section>
@@ -76,6 +76,21 @@
                 editable: true,
                 dayMaxEvents: true, // イベントが多い場合には+ボタンで表示
                 events: [...getEventDates(holidaysData), ...unavailableTimes],
+                eventClick: function(info) {
+                    if (!info.event.extendedProps.holiday) { // 祝日でないイベントのみ詳細を表示
+                        var eventObj = info.event;
+                        var content = `
+                            <div class="popup-content">
+                                <h3>${eventObj.title}</h3>
+                                <p><strong>開始:</strong> ${eventObj.start.toLocaleString()}</p>
+                                <p><strong>終了:</strong> ${eventObj.end ? eventObj.end.toLocaleString() : 'なし'}</p>
+                            </div>
+                        `;
+                        // イベントの位置を取得してポップアップを表示
+                        const rect = info.el.getBoundingClientRect();
+                        showPopup(content, rect.right, rect.top);
+                    }
+                },
                 eventContent: function (arg) {
                     // 祝日の日付にクラスを追加
                     if (arg.event.extendedProps.holiday) {
@@ -157,6 +172,33 @@
                 }
             });
             return unavailableTimes;
+        }
+
+        function showPopup(content, x, y) {
+            // 既存のポップアップがあれば削除
+            const existingPopup = document.querySelector('.popup');
+            if (existingPopup) {
+                existingPopup.remove();
+            }
+
+            const popup = document.createElement('div');
+            popup.className = 'popup';
+            popup.innerHTML = content;
+            document.body.appendChild(popup);
+
+            // ポップアップの位置を設定
+            popup.style.left = `${x}px`;
+            popup.style.top = `${y}px`;
+
+            // ポップアップ以外をクリックしたときにポップアップを閉じる
+            setTimeout(() => {
+                document.addEventListener('click', function removePopup(event) {
+                    if (!popup.contains(event.target)) {
+                        popup.remove();
+                        document.removeEventListener('click', removePopup);
+                    }
+                });
+            }, 0);
         }
     </script>
 </body>

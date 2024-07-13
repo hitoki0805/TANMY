@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>登録済みアルバイト情報の一覧</title>
+    <link rel="stylesheet" href="../public/css/view-jobs.css">
+    <script type="module">
+        import { firebaseConfig } from './APIkeys/firebaseAPI.js';
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.6.0/firebase-app.js';
+        import { getFirestore, getDocs, collection, deleteDoc, doc } from 'https://www.gstatic.com/firebasejs/9.6.0/firebase-firestore.js';
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        document.addEventListener('DOMContentLoaded', async function() {
+            await loadJobs();
+        });
+
+        async function loadJobs() {
+            const jobsQuery = collection(db, "jobs");
+            const querySnapshot = await getDocs(jobsQuery);
+            const jobsList = document.getElementById('jobsList');
+            jobsList.innerHTML = '';  // リストをクリア
+
+            const jobColors = ['#FFCDD2', '#E1BEE7', '#BBDEFB', '#C8E6C9', '#FFECB3', '#F8BBD0', '#D1C4E9', '#C5CAE9', '#DCEDC8', '#FFE082'];  // アルバイト情報の色のリスト
+            let colorIndex = 0;
+
+            querySnapshot.forEach((docSnapshot) => {
+                const job = docSnapshot.data();
+                const listItem = document.createElement('div');
+                listItem.className = 'job-card';
+                listItem.style.backgroundColor = jobColors[colorIndex % jobColors.length];  // 色を設定
+                listItem.innerHTML = `
+                    <h3>${job.name}</h3>
+                    <p>基本給：${job.hourlyWage}円</p>
+                    <p>深夜給：${job.nightWage}円</p>
+                    <p>深夜時間：${job.nightHours}</p>
+                    <p>休日給：${job.holidayPay}円</p>
+                    <button class="delete-button">削除</button>
+                `;
+                listItem.querySelector('.delete-button').addEventListener('click', async () => {
+                    await deleteDoc(doc(db, "jobs", docSnapshot.id));
+                    loadJobs();  // データを再読み込み
+                });
+                colorIndex++;
+                jobsList.appendChild(listItem);
+            });
+        }
+        
+    </script>
+</head>
+<body>
+    <header>
+        <h1>アルバイト情報一覧</h1>
+        <nav>
+            <ul>
+                <li><a href="mainpage.html">ホーム</a></li>
+                <li><a href="calendar.html">カレンダー</a></li>
+                <li><a href="view-jobs.html">登録済みアルバイト情報</a></li>
+                <li><a href="view-schedule.html">登録済み予定</a></li>
+            </ul>
+        </nav>
+    </header>
+    <div class="container">
+        <div id="jobsList"></div>
+        <a href="mainpage.html" class="back-button">前のページに戻る</a>
+    </div>
+</body>
+</html>
