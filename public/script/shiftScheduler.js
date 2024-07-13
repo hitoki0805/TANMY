@@ -1,6 +1,6 @@
 import { firebaseConfig } from '../APIkeys/firebaseAPI.js';
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js';
-import { getFirestore, getDocs, collection } from 'https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js';
+import { getFirestore, getDocs, collection, addDoc, deleteDoc, doc } from 'https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js';
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
@@ -192,6 +192,46 @@ function displayShifts(shifts) {
     suggestedShiftsDiv.appendChild(ul);
 }
 
+// 曜日を文字列に変換する関数
+function getWeekdayString(dayNumber) {
+    const weekdays = ['日曜日', '月曜日', '火曜日', '水曜日', '木曜日', '金曜日', '土曜日'];
+    return weekdays[dayNumber];
+}
+
+// コレクション内のすべてのドキュメントを削除する関数
+async function clearCollection(collectionRef) {
+    const querySnapshot = await getDocs(collectionRef);
+    const deletePromises = querySnapshot.docs.map(docSnapshot => deleteDoc(docSnapshot.ref));
+    await Promise.all(deletePromises);
+}
+
+// シフトをデータベースに登録する関数を追加
+async function saveShiftsToDatabase(shifts) {
+    const shiftsCollection = collection(db, "partTimeShifts");
+
+    // コレクション内の既存のデータを削除
+    await clearCollection(shiftsCollection);
+
+    // 新しいシフトデータを追加
+    for (const shift of shifts) {
+        const startDate = new Date(shift.start);
+        const endDate = new Date(shift.end);
+        const startTime = startDate.toTimeString().split(' ')[0].substring(0, 5);
+        const endTime = endDate.toTimeString().split(' ')[0].substring(0, 5);
+        const weekday = getWeekdayString(startDate.getDay()); // 曜日を文字列に変換
+
+        await addDoc(shiftsCollection, {
+            date: startDate.toISOString().split('T')[0],
+            startTime: startTime,
+            endTime: endTime,
+            weekday: weekday,
+            recurrence: 'none',
+            name: 'アルバイト'
+        });
+        console.log("データベースにシフトを登録しました。")
+    }
+}
+
 // ページ読み込み時にアルバイト情報と利用不可能な時間を取得してコンソールに表示するように変更
 window.onload = () => {
     loadJobData().then(data => {
@@ -301,6 +341,7 @@ function getShifts(targetEarnings, targetMonth, lifestyle) {
                 console.log("提案されたシフト:", selectedShifts);
                 console.log("合計の稼ぎ:", totalEarnings);
                 displayShifts(selectedShifts); // シフトを表示
+                saveShiftsToDatabase(selectedShifts); // シフトをデータベースに保存
             })
             .catch(error => {
                 console.error("エラーが発生しました:", error);
