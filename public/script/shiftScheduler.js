@@ -216,12 +216,17 @@ async function saveShiftsToDatabase(shifts) {
     for (const shift of shifts) {
         const startDate = new Date(shift.start);
         const endDate = new Date(shift.end);
-        const startTime = startDate.toTimeString().split(' ')[0].substring(0, 5);
-        const endTime = endDate.toTimeString().split(' ')[0].substring(0, 5);
-        const weekday = getWeekdayString(startDate.getDay()); // 曜日を文字列に変換
+
+        // ローカル時間を取得し、2桁で表示するようにフォーマット
+        const startTime = startDate.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', hour12: false });
+        const endTime = endDate.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', hour12: false });
+        const weekday = getWeekdayString(startDate.getDay());
+
+        // ローカルの日付を取得
+        const localDate = new Date(startDate.getTime() - (startDate.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
 
         await addDoc(shiftsCollection, {
-            date: startDate.toISOString().split('T')[0],
+            date: localDate, // ローカルの日付を使用
             startTime: startTime,
             endTime: endTime,
             weekday: weekday,
@@ -270,7 +275,7 @@ function getShifts(targetEarnings, targetMonth, lifestyle) {
     }
 
     loadJobData().then(jobsData => {
-        // ここでは最初のジョブの開店時間と閉店時間を使用しますが、実際には適切なロジックで選択する必要があります。
+        // バイトの掛け持ちに対応する場合は、ここを修正
         const storeOpenTime = jobsData[0].storeOpenTime;
         const storeCloseTime = jobsData[0].storeCloseTime;
         const hourlyWage = jobsData[0].hourlyWage;
@@ -338,8 +343,6 @@ function getShifts(targetEarnings, targetMonth, lifestyle) {
                     }
                 });
         
-                console.log("提案されたシフト:", selectedShifts);
-                console.log("合計の稼ぎ:", totalEarnings);
                 displayShifts(selectedShifts); // シフトを表示
                 saveShiftsToDatabase(selectedShifts); // シフトをデータベースに保存
             })
