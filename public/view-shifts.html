@@ -2,31 +2,44 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>JavaScriptテスト</title>
+    <title>シフト提案</title>
+    <link rel="stylesheet" href="./css/view-shifts.css">
     <script type="module" src="./script/shiftScheduler.js"></script> <!-- 外部JSファイルをモジュールとして読み込む -->
 </head>
 <body>
-    <h1>viewShifts.html</h1>
-    <!-- 目標金額入力フォームの追加 -->
-    <form id="earningsForm">
-        <!-- 月を選択するための入力フィールドを追加 -->
-        <label for="targetMonth">月を選択:</label>
-        <input type="month" id="targetMonth" required>
-        <br>
-        <label for="targetEarnings">目標金額（円）:</label>
-        <input type="number" id="targetEarnings" required>
-        <br>
-        <!-- 生活習慣を選択するための入力フィールドを追加 -->
-        <label for="lifestyle">生活習慣:</label>
-        <select id="lifestyle" required>
-            <option value="morning">朝型</option>
-            <option value="night">夜型</option>
-            <option value="normal" selected>普通</option>
-        </select>
-        <br>
-        <button type="submit">シフト提案</button>
-    </form>
-    <!-- 結果表示エリア -->
-    <div id="suggestedShifts"></div>
+    <header>
+        <h1>シフト提案</h1>
+        <nav>
+            <ul>
+                <li><a href="mainpage.html">ホーム</a></li>
+                <li><a href="calendar.html">カレンダー</a></li>
+                <li><a href="view-jobs.html">登録済みアルバイト情報</a></li>
+                <li><a href="view-schedule.html">登録済み予定</a></li>
+            </ul>
+        </nav>
+    </header>
+    <div class="container">
+        <!-- 目標金額入力フォームの追加 -->
+        <form id="earningsForm">
+            <!-- 月を選択するための入力フィールドを追加 -->
+            <label for="targetMonth">月を選択:</label>
+            <input type="month" id="targetMonth" required>
+            <br>
+            <label for="targetEarnings">目標金額（円）:</label>
+            <input type="number" id="targetEarnings" required>
+            <br>
+            <!-- 生活習慣を選択するための入力フィールドを追加 -->
+            <label for="lifestyle">生活習慣:</label>
+            <select id="lifestyle" required>
+                <option value="morning">朝型</option>
+                <option value="night">夜型</option>
+                <option value="normal" selected>普通</option>
+            </select>
+            <br>
+            <button type="submit">シフト提案</button>
+        </form>
+        <!-- 結果表示エリア -->
+        <div id="suggestedShifts"></div>
+    </div>
 </body>
 </html>
