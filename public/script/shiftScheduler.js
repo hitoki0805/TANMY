@@ -59,7 +59,7 @@ async function getUnavailableTimes(sleepStartTime, sleepEndTime, startDate, endD
 }
 
 async function loadRegisteredTimes(startDate, endDate) {
-    console.log("loadRegisteredTimesを実行")
+    // console.log("loadRegisteredTimesを実行")
     const querySnapshot = await getDocs(collection(db, "unavailableTimes"));
     const registeredTimes = [];
 
@@ -130,7 +130,7 @@ async function proposeShifts(sleepStartTime, sleepEndTime, startDate, endDate, s
         let dayShifts = [];
         let totalHours = 0; // その日の合計労働時間を追跡
 
-        console.log(dayOpenTime)
+        // console.log(dayOpenTime)
 
         // 当日の予定されている時間を除外
         const dayBlockedTimes = blockedTimes.filter(time => time.date === currentDate.toISOString().split('T')[0]);
@@ -150,7 +150,7 @@ async function proposeShifts(sleepStartTime, sleepEndTime, startDate, endDate, s
                 }
             }
             currentTime = new Date(Math.max(blockEnd.getTime(), dayOpenTime.getTime())); // 開店時間とblockEndの遅い方を次の開始時間とする
-            console.log(blockEnd)
+            // console.log(blockEnd)
         });
 
         // 最後のブロック後の時間を追加
@@ -169,7 +169,7 @@ async function proposeShifts(sleepStartTime, sleepEndTime, startDate, endDate, s
         currentDate.setDate(currentDate.getDate() + 1); // 次の日に進む
     }
 
-    console.log("提案されたシフト:", availableShifts);
+    console.log("シフト候補:", availableShifts);
     return availableShifts;
 }
 
@@ -186,7 +186,10 @@ function displayShifts(shifts) {
     const ul = document.createElement('ul');
     shifts.forEach(shift => {
         const li = document.createElement('li');
-        li.textContent = `開始: ${shift.start.toLocaleString()}, 終了: ${shift.end.toLocaleString()}`;
+        const startDate = new Date(shift.start);
+        const endDate = new Date(shift.end);
+        const weekday = getWeekdayString(startDate.getDay());
+        li.textContent = `開始: ${startDate.toLocaleString()} (${weekday}), 終了: ${endDate.toLocaleString()} (${weekday})`;
         ul.appendChild(li);
     });
     suggestedShiftsDiv.appendChild(ul);
@@ -250,12 +253,17 @@ window.onload = () => {
         const targetEarnings = document.getElementById('targetEarnings').value;
         const targetMonth = document.getElementById('targetMonth').value;
         const lifestyle = document.getElementById('lifestyle').value; // 生活習慣の選択を取得
-        getShifts(targetEarnings, targetMonth, lifestyle);
+        const preferredDays = Array.from(document.getElementById('preferredDays').selectedOptions).map(option => parseInt(option.value)); // 優先曜日の選択を取得
+        
+        // 選択された曜日をコンソールに表示
+        console.log("選択された優先曜日:", preferredDays);
+
+        getShifts(targetEarnings, targetMonth, lifestyle, preferredDays);
     });
 };
 
 // getShifts関数に月を引数として追加
-function getShifts(targetEarnings, targetMonth, lifestyle) {
+function getShifts(targetEarnings, targetMonth, lifestyle, preferredDays) {
     const year = targetMonth.split('-')[0];
     const month = parseInt(targetMonth.split('-')[1], 10);
     const startDate = new Date(Date.UTC(year, month - 1, 1)); // 選択された月の初日をUTCで設定
@@ -301,48 +309,63 @@ function getShifts(targetEarnings, targetMonth, lifestyle) {
             console.log(lifestyle)
 
             console.log("proposeShiftsの実行を開始します")
-            proposeShifts(sleepStartTime, sleepEndTime, startDate, endDate, storeOpenTime, storeCloseTime, hourlyWage, nightWage, holidayPay, hourlyWage, nightWage, holidayPay)
+            proposeShifts(sleepStartTime, sleepEndTime, startDate, endDate, storeOpenTime, storeCloseTime, hourlyWage, nightWage, holidayPay)
             .then(availableShifts => {
                 console.log("proposeShiftsの実行を開始しました")
                 // 効率よく目標金額に達成するためのシフトを計算
                 let totalEarnings = 0;
                 let selectedShifts = [];
-                availableShifts.forEach(shift => {
-                    let shiftStart = shift.start;
-                    let shiftEnd = shift.end;
-                    let shiftDuration = (shiftEnd - shiftStart) / 3600000; // 時間単位で変換
-                    let shiftEarnings = 0;
-        
-                    // 深夜給と休日給の計算
-                    let currentHour = new Date(shiftStart);
-                    while (currentHour < shiftEnd) {
-                        let nextHour = new Date(currentHour.getTime() + 3600000);
-                        if (nextHour > shiftEnd) {
-                            nextHour = shiftEnd;
+
+                // 優先曜日のシフトを先に選択
+                const preferredShifts = availableShifts.filter(shift => preferredDays.includes(new Date(shift.start).getDay()));
+                const nonPreferredShifts = availableShifts.filter(shift => !preferredDays.includes(new Date(shift.start).getDay()));
+
+                function calculateShifts(shifts) {
+                    shifts.forEach(shift => {
+                        let shiftStart = shift.start;
+                        let shiftEnd = shift.end;
+                        let shiftDuration = (shiftEnd - shiftStart) / 3600000; // 時間単位で変換
+                        let shiftEarnings = 0;
+
+                        // 深夜給と休日給の計算
+                        let currentHour = new Date(shiftStart);
+                        while (currentHour < shiftEnd) {
+                            let nextHour = new Date(currentHour.getTime() + 3600000);
+                            if (nextHour > shiftEnd) {
+                                nextHour = shiftEnd;
+                            }
+                            let hourDuration = (nextHour - currentHour) / 3600000;
+
+                            // 深夜給の判定
+                            if (currentHour.getHours() >= 22 || currentHour.getHours() < 5) {
+                                shiftEarnings += hourDuration * nightWage;
+                            } else {
+                                shiftEarnings += hourDuration * hourlyWage;
+                            }
+
+                            // 休日給の判定（土曜日または日曜日）
+                            if (currentHour.getDay() === 0 || currentHour.getDay() === 6) {
+                                shiftEarnings += hourDuration * (holidayPay - hourlyWage);
+                            }
+
+                            currentHour = new Date(currentHour.getTime() + 3600000);
                         }
-                        let hourDuration = (nextHour - currentHour) / 3600000;
-        
-                        // 深夜給の判定
-                        if (currentHour.getHours() >= 22 || currentHour.getHours() < 5) {
-                            shiftEarnings += hourDuration * nightWage;
-                        } else {
-                            shiftEarnings += hourDuration * hourlyWage;
+
+                        if (totalEarnings < targetEarnings) {
+                            selectedShifts.push(shift);
+                            totalEarnings += shiftEarnings;
                         }
-        
-                        // 休日給の判定（土曜日または日曜日）
-                        if (currentHour.getDay() === 0 || currentHour.getDay() === 6) {
-                            shiftEarnings += hourDuration * (holidayPay - hourlyWage);
-                        }
-        
-                        currentHour = new Date(currentHour.getTime() + 3600000);
-                    }
-        
-                    if (totalEarnings <= targetEarnings) {
-                        selectedShifts.push(shift);
-                        totalEarnings += shiftEarnings;
-                    }
-                });
-        
+                    });
+                }
+
+                // 優先曜日のシフトを計算
+                calculateShifts(preferredShifts);
+
+                // 目標金額に達していない場合、残りの曜日のシフトを計算
+                if (totalEarnings < targetEarnings) {
+                    calculateShifts(nonPreferredShifts);
+                }
+
                 displayShifts(selectedShifts); // シフトを表示
                 saveShiftsToDatabase(selectedShifts); // シフトをデータベースに保存
             })

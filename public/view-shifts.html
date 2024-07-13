@@ -24,6 +24,18 @@
             <option value="normal" selected>普通</option>
         </select>
         <br>
+        <!-- 優先曜日を選択するための入力フィールドを追加 -->
+        <label for="preferredDays">優先曜日:</label>
+        <select id="preferredDays" multiple required>
+            <option value="0">日曜日</option>
+            <option value="1">月曜日</option>
+            <option value="2">火曜日</option>
+            <option value="3">水曜日</option>
+            <option value="4">木曜日</option>
+            <option value="5">金曜日</option>
+            <option value="6">土曜日</option>
+        </select>
+        <br>
         <button type="submit">シフト提案</button>
     </form>
     <!-- 結果表示エリア -->
