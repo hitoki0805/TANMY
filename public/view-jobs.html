@@ -34,8 +34,9 @@
                     <h3>${job.name}</h3>
                     <p>基本給：${job.hourlyWage}円</p>
                     <p>深夜給：${job.nightWage}円</p>
-                    <p>深夜時間：${job.nightHours}</p>
                     <p>休日給：${job.holidayPay}円</p>
+                    <p>開店時間：${job.storeOpenTime}</p>
+                    <p>閉店時間：${job.storeCloseTime}</p>
                     <button class="delete-button">削除</button>
                 `;
                 listItem.querySelector('.delete-button').addEventListener('click', async () => {
