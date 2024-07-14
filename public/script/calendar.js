@@ -1,6 +1,7 @@
 import { firebaseConfig } from '../APIkeys/firebaseAPI.js';
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js';
 import { getFirestore, getDocs, collection } from 'https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js';
+import { escapeHTML } from './escapeHTML.js';
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
@@ -28,9 +29,9 @@ document.addEventListener('DOMContentLoaded', async function () {
                 var eventObj = info.event;
                 var content = `
                     <div class="popup-content">
-                        <h3>${eventObj.title}</h3>
-                        <p><strong>開始:</strong> ${eventObj.start.toLocaleString()}</p>
-                        <p><strong>終了:</strong> ${eventObj.end ? eventObj.end.toLocaleString() : 'なし'}</p>
+                        <h3>${escapeHTML(eventObj.title)}</h3>
+                        <p><strong>開始:</strong> ${escapeHTML(eventObj.start.toLocaleString())}</p>
+                        <p><strong>終了:</strong> ${eventObj.end ? escapeHTML(eventObj.end.toLocaleString()) : 'なし'}</p>
                     </div>
                 `;
                 // イベントの位置を取得してポップアップを表示
@@ -47,7 +48,7 @@ document.addEventListener('DOMContentLoaded', async function () {
                 }
             }
             // 予定の名称を表示
-            let customHtml = '<div class="fc-event-title">' + arg.event.title + '</div>';
+            let customHtml = '<div class="fc-event-title">' + escapeHTML(arg.event.title) + '</div>';
             return { html: customHtml };
         },
         dayCellClassNames: function (arg) {

@@ -1,6 +1,7 @@
 import { firebaseConfig } from '../APIkeys/firebaseAPI.js';
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js';
 import { getFirestore, getDocs, collection, addDoc, deleteDoc, doc } from 'https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js';
+import { escapeHTML } from './escapeHTML.js';
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
@@ -189,7 +190,7 @@ function displayShifts(shifts) {
         const startDate = new Date(shift.start);
         const endDate = new Date(shift.end);
         const weekday = getWeekdayString(startDate.getDay());
-        li.textContent = `開始: ${startDate.toLocaleString()} (${weekday}), 終了: ${endDate.toLocaleString()} (${weekday})`;
+        li.textContent = `開始: ${escapeHTML(startDate.toLocaleString())} (${escapeHTML(weekday)}), 終了: ${escapeHTML(endDate.toLocaleString())} (${escapeHTML(weekday)})`;
         ul.appendChild(li);
     });
     suggestedShiftsDiv.appendChild(ul);
