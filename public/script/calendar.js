@@ -6,12 +6,28 @@ import { escapeHTML } from './escapeHTML.js';
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
+async function loadJobData() {
+    const jobsCollection = collection(db, "jobs");
+    const snapshot = await getDocs(jobsCollection);
+    const jobsData = [];
+    snapshot.forEach(doc => {
+        jobsData.push(doc.data());
+    });
+    return jobsData;
+}
+
 document.addEventListener('DOMContentLoaded', async function () {
     const holidaysData = await $.get("https://holidays-jp.github.io/api/v1/date.json");
     const unavailableTimes = await loadUnavailableTimes();
     const partTimeShifts = await loadPartTimeShifts();
+    const jobData = await loadJobData();
 
-    // 初期処理
+    // アルバイト名と色のマッピング
+    const jobColorMap = {};
+    jobData.forEach(job => {
+        jobColorMap[job.name] = job.color;
+    });
+
     var calendarEl = document.getElementById('calendar');
     var calendar = new FullCalendar.Calendar(calendarEl, {
         headerToolbar: {
@@ -20,12 +36,12 @@ document.addEventListener('DOMContentLoaded', async function () {
             right: 'timeGridDay,timeGridWeek,dayGridMonth'
         },
         initialView: 'dayGridMonth',
-        navLinks: true, // 日付と週のリンクを有効にする
+        navLinks: true,
         editable: true,
-        dayMaxEvents: true, // イベントが多い場合には+ボタンで表示
+        dayMaxEvents: true,
         events: [...getEventDates(holidaysData), ...unavailableTimes, ...partTimeShifts],
         eventClick: function (info) {
-            if (!info.event.extendedProps.holiday) { // 祝日でないイベントのみ詳細を表示
+            if (!info.event.extendedProps.holiday) {
                 var eventObj = info.event;
                 var content = `
                     <div class="popup-content">
@@ -40,12 +56,11 @@ document.addEventListener('DOMContentLoaded', async function () {
             }
         },
         eventContent: function (arg) {
-            // 祝日の日付にクラスを追加
-            if (arg.event.extendedProps.holiday) {
-                var element = document.querySelector('.fc-daygrid-day[data-date="' + arg.event.startStr + '"]');
-                if (element) {
-                    element.classList.add("holiday");
-                }
+            let backgroundColor = '';
+            let textColor = '';
+            if (jobColorMap[arg.event.title]) {
+                backgroundColor = `background-color: ${jobColorMap[arg.event.title]};`;
+                textColor = `color: white;`;
             }
             // 予定の名称を表示
             let customHtml = '<div class="fc-event-title">' + escapeHTML(arg.event.title) + '</div>';
@@ -66,7 +81,6 @@ document.addEventListener('DOMContentLoaded', async function () {
 
 function getEventDates(holidaysData) {
     var eventDates = [];
-
     var holidays = Object.keys(holidaysData);
     for (var i = 0; i < holidays.length; i++) {
         var holiday = {
@@ -78,121 +92,124 @@ function getEventDates(holidaysData) {
         };
         eventDates.push(holiday);
     }
-    return eventDates; // 返り値を追加
+    return eventDates;
 }
 
 function isHoliday(date, holidaysData) {
     var dateString = date.toISOString().split('T')[0];
     return holidaysData.hasOwnProperty(dateString);
-}
 
-async function loadUnavailableTimes() {
-    const querySnapshot = await getDocs(collection(db, "unavailableTimes"));
-    const unavailableTimes = [];
-    const today = new Date();
-    const endDate = new Date();
-    endDate.setMonth(today.getMonth() + 3); // 3ヶ月先までの予定を表示
+    async function loadUnavailableTimes() {
+        const querySnapshot = await getDocs(collection(db, "unavailableTimes"));
+        const unavailableTimes = [];
+        const today = new Date();
+        const endDate = new Date();
+        endDate.setMonth(today.getMonth() + 3);
 
-    querySnapshot.forEach((docSnapshot) => {
-        const time = docSnapshot.data();
-        const startDate = new Date(time.date);
-        const recurrence = time.recurrence;
+        querySnapshot.forEach((docSnapshot) => {
+            const time = docSnapshot.data();
+            const startDate = new Date(time.date);
+            const recurrence = time.recurrence;
 
-        if (recurrence === 'none') {
-            unavailableTimes.push({
-                title: escapeHTML(time.name), // 予定の名称を追加
-                start: time.date + 'T' + time.startTime,
-                end: time.date + 'T' + time.endTime,
-                color: 'red'
-            });
-        } else {
-            let currentDate = new Date(startDate);
-            while (currentDate <= endDate) {
+            if (recurrence === 'none') {
                 unavailableTimes.push({
                     title: escapeHTML(time.name), // 予定の名称を追加
-                    start: currentDate.toISOString().split('T')[0] + 'T' + time.startTime,
-                    end: currentDate.toISOString().split('T')[0] + 'T' + time.endTime,
+                    start: time.date + 'T' + time.startTime,
+                    end: time.date + 'T' + time.endTime,
                     color: 'red'
                 });
+            } else {
+                let currentDate = new Date(startDate);
+                while (currentDate <= endDate) {
+                    unavailableTimes.push({
+                        title: escapeHTML(time.name), // 予定の名称を追加
+                        start: currentDate.toISOString().split('T')[0] + 'T' + time.startTime,
+                        end: currentDate.toISOString().split('T')[0] + 'T' + time.endTime,
+                        color: 'red'
+                    });
 
-                if (recurrence === 'daily') {
-                    currentDate.setDate(currentDate.getDate() + 1);
-                } else if (recurrence === 'weekly') {
-                    currentDate.setDate(currentDate.getDate() + 7);
-                } else if (recurrence === 'monthly') {
-                    currentDate.setMonth(currentDate.getMonth() + 1);
+                    if (recurrence === 'daily') {
+                        currentDate.setDate(currentDate.getDate() + 1);
+                    } else if (recurrence === 'weekly') {
+                        currentDate.setDate(currentDate.getDate() + 7);
+                    } else if (recurrence === 'monthly') {
+                        currentDate.setMonth(currentDate.getMonth() + 1);
+                    }
                 }
-            }
-        }
-    });
-    return unavailableTimes;
-}
-
-async function loadPartTimeShifts() {
-    const querySnapshot = await getDocs(collection(db, "partTimeShifts"));
-    const partTimeShifts = [];
-    const today = new Date();
-    const endDate = new Date();
-    endDate.setMonth(today.getMonth() + 3); // 3ヶ月先までの予定を表示
-
-    querySnapshot.forEach((docSnapshot) => {
-        const time = docSnapshot.data();
-        const startDate = new Date(time.date);
-        const recurrence = time.recurrence;
-
-        if (recurrence === 'none') {
-            partTimeShifts.push({
-                title: escapeHTML(time.name), // 予定の名称を追加
-                start: time.date + 'T' + time.startTime,
-                end: time.date + 'T' + time.endTime,
-                color: 'red'
-            });
-        } else {
-            let currentDate = new Date(startDate);
-            while (currentDate <= endDate) {
-                partTimeShifts.push({
-                    title: escapeHTML(time.name), // 予定の名称を追加
-                    start: currentDate.toISOString().split('T')[0] + 'T' + time.startTime,
-                    end: currentDate.toISOString().split('T')[0] + 'T' + time.endTime,
-                    color: 'red'
-                });
-
-                if (recurrence === 'daily') {
-                    currentDate.setDate(currentDate.getDate() + 1);
-                } else if (recurrence === 'weekly') {
-                    currentDate.setDate(currentDate.getDate() + 7);
-                } else if (recurrence === 'monthly') {
-                    currentDate.setMonth(currentDate.getMonth() + 1);
-                }
-            }
-        }
-    });
-    return partTimeShifts;
-}
-
-function showPopup(content, x, y) {
-    // 既存のポップアップがあれば削除
-    const existingPopup = document.querySelector('.popup');
-    if (existingPopup) {
-        existingPopup.remove();
-    }
-
-    const popup = document.createElement('div');
-    popup.className = 'popup';
-    popup.innerHTML = content;
-    document.body.appendChild(popup);
-
-    // ポップアップの位置を設定
-    popup.style.left = `${x}px`;
-    popup.style.top = `${y}px`;
-
-    // ポップアップ以外をクリックしたときにポップアップを閉じる
-    setTimeout(() => {
-        document.addEventListener('click', function removePopup(event) {
-            if (!popup.contains(event.target)) {
-                popup.remove();
-                document.removeEventListener('click', removePopup);
             }
         });
-    }, 0);
+        return unavailableTimes;
+    }
 }
+
+
+    async function loadPartTimeShifts() {
+        const querySnapshot = await getDocs(collection(db, "partTimeShifts"));
+        const partTimeShifts = [];
+        const today = new Date();
+        const endDate = new Date();
+        endDate.setMonth(today.getMonth() + 3);
+
+        querySnapshot.forEach((docSnapshot) => {
+            const time = docSnapshot.data();
+            const startDate = new Date(time.date);
+            const recurrence = time.recurrence;
+
+            if (recurrence === 'none') {
+                partTimeShifts.push({
+                    title: escapeHTML(time.name), // 予定の名称を追加
+                    start: time.date + 'T' + time.startTime,
+                    end: time.date + 'T' + time.endTime,
+                    color: time.color // ここで色を適用
+                });
+            } else {
+                let currentDate = new Date(startDate);
+                while (currentDate <= endDate) {
+                    partTimeShifts.push({
+                        title: escapeHTML(time.name), // 予定の名称を追加
+                        start: currentDate.toISOString().split('T')[0] + 'T' + time.startTime,
+                        end: currentDate.toISOString().split('T')[0] + 'T' + time.endTime,
+                        color: time.color // ここで色を適用
+                    });
+
+                    if (recurrence === 'daily') {
+                        currentDate.setDate(currentDate.getDate() + 1);
+                    } else if (recurrence === 'weekly') {
+                        currentDate.setDate(currentDate.getDate() + 7);
+                    } else if (recurrence === 'monthly') {
+                        currentDate.setMonth(currentDate.getMonth() + 1);
+                    }
+                }
+            }
+        });
+        return partTimeShifts;
+    }
+
+    function showPopup(content, x, y, viewType) {
+        const existingPopup = document.querySelector('.popup');
+        if (existingPopup) {
+            existingPopup.remove();
+        }
+
+        const popup = document.createElement('div');
+        popup.className = 'popup';
+        popup.innerHTML = content;
+        document.body.appendChild(popup);
+
+        if (viewType === 'timeGridWeek' || viewType === 'timeGridDay') {
+            popup.style.left = `${x}px`;
+            popup.style.top = `${y + window.scrollY + popup.getBoundingClientRect().height}px`;
+        } else {
+            popup.style.left = `${x + window.scrollX}px`;
+            popup.style.top = `${y + window.scrollY}px`;
+        }
+
+        setTimeout(() => {
+            document.addEventListener('click', function removePopup(event) {
+                if (!popup.contains(event.target)) {
+                    popup.remove();
+                    document.removeEventListener('click', removePopup);
+                }
+            });
+        }, 0);
+    }

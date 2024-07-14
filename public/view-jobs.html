@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ja">
+
 <head>
     <meta charset="UTF-8">
     <title>登録済みアルバイト情報の一覧</title>
@@ -7,12 +8,12 @@
     <script type="module">
         import { firebaseConfig } from './APIkeys/firebaseAPI.js';
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.6.0/firebase-app.js';
-        import { getFirestore, getDocs, collection, deleteDoc, doc } from 'https://www.gstatic.com/firebasejs/9.6.0/firebase-firestore.js';
+        import { getFirestore, getDocs, collection, deleteDoc, doc, query, where } from 'https://www.gstatic.com/firebasejs/9.6.0/firebase-firestore.js';
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        document.addEventListener('DOMContentLoaded', async function() {
+        document.addEventListener('DOMContentLoaded', async function () {
             await loadJobs();
         });
 
@@ -22,14 +23,12 @@
             const jobsList = document.getElementById('jobsList');
             jobsList.innerHTML = '';  // リストをクリア
 
-            const jobColors = ['#FFCDD2', '#E1BEE7', '#BBDEFB', '#C8E6C9', '#FFECB3', '#F8BBD0', '#D1C4E9', '#C5CAE9', '#DCEDC8', '#FFE082'];  // アルバイト情報の色のリスト
-            let colorIndex = 0;
-
             querySnapshot.forEach((docSnapshot) => {
                 const job = docSnapshot.data();
+                console.log("Loaded job color:", job.color);  // ログを追加
                 const listItem = document.createElement('div');
                 listItem.className = 'job-card';
-                listItem.style.backgroundColor = jobColors[colorIndex % jobColors.length];  // 色を設定
+                listItem.style.backgroundColor = job.color;  // Firestoreに保存された色を使用
                 listItem.innerHTML = `
                     <h3>${job.name}</h3>
                     <p>基本給：${job.hourlyWage}円</p>
@@ -40,19 +39,31 @@
                     <button class="delete-button">削除</button>
                 `;
                 listItem.querySelector('.delete-button').addEventListener('click', async () => {
-                    await deleteDoc(doc(db, "jobs", docSnapshot.id));
+                    await deleteJob(docSnapshot.id, job.name);
                     loadJobs();  // データを再読み込み
                 });
-                colorIndex++;
                 jobsList.appendChild(listItem);
             });
         }
-        
+
+        async function deleteJob(jobId, jobName) {
+            // シフトの削除
+            const shiftsQuery = query(collection(db, "partTimeShifts"), where("name", "==", jobName));
+            const shiftsSnapshot = await getDocs(shiftsQuery);
+            const deletePromises = shiftsSnapshot.docs.map(shiftDoc => deleteDoc(shiftDoc.ref));
+            await Promise.all(deletePromises);
+
+            // アルバイト情報の削除
+            await deleteDoc(doc(db, "jobs", jobId));
+            console.log(`Deleted job and related shifts for ${jobName}`);
+        }
+
     </script>
 </head>
+
 <body>
     <header>
-        <h1>アルバイト情報一覧</h1>
+        <h1>登録済みアルバイト情報</h1>
         <nav>
             <ul>
                 <li><a href="mainpage.html">ホーム</a></li>
@@ -67,4 +78,5 @@
         <a href="mainpage.html" class="back-button">前のページに戻る</a>
     </div>
 </body>
+
 </html>
