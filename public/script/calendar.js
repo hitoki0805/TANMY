@@ -84,8 +84,7 @@ function getEventDates(holidaysData) {
 function isHoliday(date, holidaysData) {
     var dateString = date.toISOString().split('T')[0];
     return holidaysData.hasOwnProperty(dateString);
-}
-
+  
 async function loadUnavailableTimes() {
     const querySnapshot = await getDocs(collection(db, "unavailableTimes"));
     const unavailableTimes = [];
@@ -170,7 +169,7 @@ async function loadPartTimeShifts() {
     return partTimeShifts;
 }
 
-function showPopup(content, x, y) {
+function showPopup(content, x, y, viewType) {
     // 既存のポップアップがあれば削除
     const existingPopup = document.querySelector('.popup');
     if (existingPopup) {
@@ -183,8 +182,13 @@ function showPopup(content, x, y) {
     document.body.appendChild(popup);
 
     // ポップアップの位置を設定
-    popup.style.left = `${x}px`;
-    popup.style.top = `${y}px`;
+    if (viewType === 'timeGridWeek' || viewType === 'timeGridDay') {
+        popup.style.left = `${x}px`;
+        popup.style.top = `${y + window.scrollY + popup.getBoundingClientRect().height}px`;
+    } else {
+        popup.style.left = `${x + window.scrollX}px`;
+        popup.style.top = `${y + window.scrollY}px`;
+    }
 
     // ポップアップ以外をクリックしたときにポップアップを閉じる
     setTimeout(() => {
