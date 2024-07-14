@@ -70,7 +70,7 @@ function getEventDates(holidaysData) {
     var holidays = Object.keys(holidaysData);
     for (var i = 0; i < holidays.length; i++) {
         var holiday = {
-            title: holidaysData[holidays[i]],
+            title: escapeHTML(holidaysData[holidays[i]]),
             start: holidays[i],
             className: "holiday",
             holiday: holidays[i],
@@ -100,7 +100,7 @@ async function loadUnavailableTimes() {
 
         if (recurrence === 'none') {
             unavailableTimes.push({
-                title: time.name, // 予定の名称を追加
+                title: escapeHTML(time.name), // 予定の名称を追加
                 start: time.date + 'T' + time.startTime,
                 end: time.date + 'T' + time.endTime,
                 color: 'red'
@@ -109,7 +109,7 @@ async function loadUnavailableTimes() {
             let currentDate = new Date(startDate);
             while (currentDate <= endDate) {
                 unavailableTimes.push({
-                    title: time.name, // 予定の名称を追加
+                    title: escapeHTML(time.name), // 予定の名称を追加
                     start: currentDate.toISOString().split('T')[0] + 'T' + time.startTime,
                     end: currentDate.toISOString().split('T')[0] + 'T' + time.endTime,
                     color: 'red'
@@ -142,7 +142,7 @@ async function loadPartTimeShifts() {
 
         if (recurrence === 'none') {
             partTimeShifts.push({
-                title: time.name, // 予定の名称を追加
+                title: escapeHTML(time.name), // 予定の名称を追加
                 start: time.date + 'T' + time.startTime,
                 end: time.date + 'T' + time.endTime,
                 color: 'red'
@@ -151,7 +151,7 @@ async function loadPartTimeShifts() {
             let currentDate = new Date(startDate);
             while (currentDate <= endDate) {
                 partTimeShifts.push({
-                    title: time.name, // 予定の名称を追加
+                    title: escapeHTML(time.name), // 予定の名称を追加
                     start: currentDate.toISOString().split('T')[0] + 'T' + time.startTime,
                     end: currentDate.toISOString().split('T')[0] + 'T' + time.endTime,
                     color: 'red'
