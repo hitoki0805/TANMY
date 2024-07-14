@@ -32,7 +32,7 @@
                 try {
                     await addDoc(collection(db, "unavailableTimes"), unavailableData);
                     alert('登録が完了しました。');
-                    document.getElementById('unavailableForm').reset();
+                    document.getElementById('jobForm').reset();
                     loadUnavailableTimes();  // データを再読み込み
                 } catch (error) {
                     console.error('エラーが発生しました: ', error);
@@ -80,6 +80,7 @@
 
         // 日付から曜日を取得する関数
         function getWeekday(dateString) {
+            if (!dateString) return '不明';
             const date = new Date(dateString);
             const weekdays = ['日曜日', '月曜日', '火曜日', '水曜日', '木曜日', '金曜日', '土曜日'];
             return weekdays[date.getUTCDay()];
