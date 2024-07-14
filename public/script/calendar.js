@@ -142,74 +142,115 @@ function isHoliday(date, holidaysData) {
     }
 }
 
+async function loadUnavailableTimes() {
+    const querySnapshot = await getDocs(collection(db, "unavailableTimes"));
+    const unavailableTimes = [];
+    const today = new Date();
+    const endDate = new Date();
+    endDate.setMonth(today.getMonth() + 3);
 
-    async function loadPartTimeShifts() {
-        const querySnapshot = await getDocs(collection(db, "partTimeShifts"));
-        const partTimeShifts = [];
-        const today = new Date();
-        const endDate = new Date();
-        endDate.setMonth(today.getMonth() + 3);
+    querySnapshot.forEach((docSnapshot) => {
+        const time = docSnapshot.data();
+        const startDate = new Date(time.date);
+        const recurrence = time.recurrence;
 
-        querySnapshot.forEach((docSnapshot) => {
-            const time = docSnapshot.data();
-            const startDate = new Date(time.date);
-            const recurrence = time.recurrence;
-
-            if (recurrence === 'none') {
-                partTimeShifts.push({
-                    title: escapeHTML(time.name), // 予定の名称を追加
-                    start: time.date + 'T' + time.startTime,
-                    end: time.date + 'T' + time.endTime,
-                    color: time.color // ここで色を適用
+        if (recurrence === 'none') {
+            unavailableTimes.push({
+                title: time.name,
+                start: time.date + 'T' + time.startTime,
+                end: time.date + 'T' + time.endTime,
+                color: 'red'
+            });
+        } else {
+            let currentDate = new Date(startDate);
+            while (currentDate <= endDate) {
+                unavailableTimes.push({
+                    title: time.name,
+                    start: currentDate.toISOString().split('T')[0] + 'T' + time.startTime,
+                    end: currentDate.toISOString().split('T')[0] + 'T' + time.endTime,
+                    color: 'red'
                 });
-            } else {
-                let currentDate = new Date(startDate);
-                while (currentDate <= endDate) {
-                    partTimeShifts.push({
-                        title: escapeHTML(time.name), // 予定の名称を追加
-                        start: currentDate.toISOString().split('T')[0] + 'T' + time.startTime,
-                        end: currentDate.toISOString().split('T')[0] + 'T' + time.endTime,
-                        color: time.color // ここで色を適用
-                    });
 
-                    if (recurrence === 'daily') {
-                        currentDate.setDate(currentDate.getDate() + 1);
-                    } else if (recurrence === 'weekly') {
-                        currentDate.setDate(currentDate.getDate() + 7);
-                    } else if (recurrence === 'monthly') {
-                        currentDate.setMonth(currentDate.getMonth() + 1);
-                    }
+                if (recurrence === 'daily') {
+                    currentDate.setDate(currentDate.getDate() + 1);
+                } else if (recurrence === 'weekly') {
+                    currentDate.setDate(currentDate.getDate() + 7);
+                } else if (recurrence === 'monthly') {
+                    currentDate.setMonth(currentDate.getMonth() + 1);
                 }
             }
-        });
-        return partTimeShifts;
-    }
-
-    function showPopup(content, x, y, viewType) {
-        const existingPopup = document.querySelector('.popup');
-        if (existingPopup) {
-            existingPopup.remove();
         }
+    });
+    return unavailableTimes;
+}
 
-        const popup = document.createElement('div');
-        popup.className = 'popup';
-        popup.innerHTML = content;
-        document.body.appendChild(popup);
+async function loadPartTimeShifts() {
+    const querySnapshot = await getDocs(collection(db, "partTimeShifts"));
+    const partTimeShifts = [];
+    const today = new Date();
+    const endDate = new Date();
+    endDate.setMonth(today.getMonth() + 3);
 
-        if (viewType === 'timeGridWeek' || viewType === 'timeGridDay') {
-            popup.style.left = `${x}px`;
-            popup.style.top = `${y + window.scrollY + popup.getBoundingClientRect().height}px`;
-        } else {
-            popup.style.left = `${x + window.scrollX}px`;
-            popup.style.top = `${y + window.scrollY}px`;
-        }
+    querySnapshot.forEach((docSnapshot) => {
+        const time = docSnapshot.data();
+        const startDate = new Date(time.date);
+        const recurrence = time.recurrence;
 
-        setTimeout(() => {
-            document.addEventListener('click', function removePopup(event) {
-                if (!popup.contains(event.target)) {
-                    popup.remove();
-                    document.removeEventListener('click', removePopup);
-                }
+        if (recurrence === 'none') {
+            partTimeShifts.push({
+                title: escapeHTML(time.name), // 予定の名称を追加
+                start: time.date + 'T' + time.startTime,
+                end: time.date + 'T' + time.endTime,
+                color: time.color // ここで色を適用
             });
-        }, 0);
+        } else {
+            let currentDate = new Date(startDate);
+            while (currentDate <= endDate) {
+                partTimeShifts.push({
+                    title: escapeHTML(time.name), // 予定の名称を追加
+                    start: currentDate.toISOString().split('T')[0] + 'T' + time.startTime,
+                    end: currentDate.toISOString().split('T')[0] + 'T' + time.endTime,
+                    color: time.color // ここで色を適用
+                });
+
+                if (recurrence === 'daily') {
+                    currentDate.setDate(currentDate.getDate() + 1);
+                } else if (recurrence === 'weekly') {
+                    currentDate.setDate(currentDate.getDate() + 7);
+                } else if (recurrence === 'monthly') {
+                    currentDate.setMonth(currentDate.getMonth() + 1);
+                }
+            }
+        }
+    });
+    return partTimeShifts;
+}
+
+function showPopup(content, x, y, viewType) {
+    const existingPopup = document.querySelector('.popup');
+    if (existingPopup) {
+        existingPopup.remove();
     }
+
+    const popup = document.createElement('div');
+    popup.className = 'popup';
+    popup.innerHTML = content;
+    document.body.appendChild(popup);
+
+    if (viewType === 'timeGridWeek' || viewType === 'timeGridDay') {
+        popup.style.left = `${x}px`;
+        popup.style.top = `${y + window.scrollY + popup.getBoundingClientRect().height}px`;
+    } else {
+        popup.style.left = `${x + window.scrollX}px`;
+        popup.style.top = `${y + window.scrollY}px`;
+    }
+
+    setTimeout(() => {
+        document.addEventListener('click', function removePopup(event) {
+            if (!popup.contains(event.target)) {
+                popup.remove();
+                document.removeEventListener('click', removePopup);
+            }
+        });
+    }, 0);
+}
