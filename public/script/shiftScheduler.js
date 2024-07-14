@@ -204,6 +204,7 @@ function getWeekdayString(dayNumber) {
 
 // コレクション内のすべてのドキュメントを削除する関数
 async function clearCollection(collectionRef) {
+    console.log("コレクション内のドキュメントを削除しました")
     const querySnapshot = await getDocs(collectionRef);
     const deletePromises = querySnapshot.docs.map(docSnapshot => deleteDoc(docSnapshot.ref));
     await Promise.all(deletePromises);

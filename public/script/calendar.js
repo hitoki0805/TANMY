@@ -84,6 +84,7 @@ function getEventDates(holidaysData) {
 function isHoliday(date, holidaysData) {
     var dateString = date.toISOString().split('T')[0];
     return holidaysData.hasOwnProperty(dateString);
+}
   
 async function loadUnavailableTimes() {
     const querySnapshot = await getDocs(collection(db, "unavailableTimes"));
