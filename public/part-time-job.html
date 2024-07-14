@@ -8,17 +8,30 @@
     <script type="module">
         import { firebaseConfig } from './APIkeys/firebaseAPI.js';
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js';
-        import { getFirestore, addDoc, collection, getDocs, query, deleteDoc, doc } from 'https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js';
+        import { getFirestore, addDoc, collection, getDocs, query, deleteDoc, doc, where } from 'https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js';
+        import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.6.10/firebase-auth.js';
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
+        const auth = getAuth(app);
 
         const jobColors = ['#FFCDD2', '#E1BEE7', '#BBDEFB', '#C8E6C9', '#FFECB3', '#F8BBD0', '#D1C4E9', '#C5CAE9', '#DCEDC8', '#FFE082'];
         let usedColors = new Set(); // 使用中の色を保持するセット
+        let currentUser = null;
 
-        // 使用されている色をロードする関数を追加
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                currentUser = user;
+                loadJobs();
+                loadUsedColors();
+            } else {
+                // ユーザが認証されていない場合、ログインページにリダイレクト
+                window.location.href = 'login.html';
+            }
+        });
+
         async function loadUsedColors() {
-            const jobsQuery = query(collection(db, "jobs"));
+            const jobsQuery = query(collection(db, "jobs"), where("userId", "==", currentUser.uid));
             const querySnapshot = await getDocs(jobsQuery);
             querySnapshot.forEach((doc) => {
                 const job = doc.data();
@@ -37,11 +50,6 @@
             }
             return jobColors[0]; // 全ての色が使用されている場合、デフォルトの色を返す
         }
-
-        document.addEventListener('DOMContentLoaded', async function () {
-            await loadJobs();
-            await loadUsedColors(); // 追加
-        });
 
         document.getElementById('jobForm').addEventListener('submit', async function (event) {
             event.preventDefault();
@@ -63,7 +71,8 @@
                 storeOpenTime: document.getElementById('storeOpenTime').value,
                 storeCloseTime: document.getElementById('storeCloseTime').value,
                 holidayPay: Number(document.getElementById('holidayPay').value),
-                color: getAvailableColor() // 使用されていない色を取得
+                color: getAvailableColor(),
+                userId: currentUser.uid // ユーザIDを追加
             };
             usedColors.add(jobData.color); // 新しい色を使用中に追加
 
@@ -79,7 +88,7 @@
         });
 
         async function loadJobs() {
-            const jobsQuery = query(collection(db, "jobs"));
+            const jobsQuery = query(collection(db, "jobs"), where("userId", "==", currentUser.uid));
             const querySnapshot = await getDocs(jobsQuery);
             const jobsList = document.getElementById('jobsList');
             jobsList.innerHTML = ''; // リストをクリア
@@ -107,8 +116,6 @@
             await deleteDoc(doc(db, "jobs", id));
             loadJobs(); // データを再読み込み
         }
-
-        loadJobs();
     </script>
 </head>
 
@@ -121,6 +128,7 @@
                 <li><a href="calendar.html">カレンダー</a></li>
                 <li><a href="view-jobs.html">登録済みアルバイト情報</a></li>
                 <li><a href="view-schedule.html">登録済み予定</a></li>
+                <li><a href="authentication.html">ログアウト</a></li> <!-- ログアウトボタンの追加 -->
             </ul>
         </nav>
     </header>

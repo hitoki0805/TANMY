@@ -1,13 +1,26 @@
 import { firebaseConfig } from '../APIkeys/firebaseAPI.js';
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js';
-import { getFirestore, getDocs, collection } from 'https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js';
+import { getFirestore, getDocs, collection, query, where } from 'https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js';
+import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.6.10/firebase-auth.js';
 import { escapeHTML } from './escapeHTML.js';
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app);
+let currentUser = null;
+
+onAuthStateChanged(auth, (user) => {
+    if (user) {
+        currentUser = user;
+        initializeCalendar();
+    } else {
+        // ユーザが認証されていない場合、ログインページにリダイレクト
+        window.location.href = 'login.html';
+    }
+});
 
 async function loadJobData() {
-    const jobsCollection = collection(db, "jobs");
+    const jobsCollection = query(collection(db, "jobs"), where("userId", "==", currentUser.uid));
     const snapshot = await getDocs(jobsCollection);
     const jobsData = [];
     snapshot.forEach(doc => {
@@ -16,7 +29,7 @@ async function loadJobData() {
     return jobsData;
 }
 
-document.addEventListener('DOMContentLoaded', async function () {
+async function initializeCalendar() {
     const holidaysData = await $.get("https://holidays-jp.github.io/api/v1/date.json");
     const unavailableTimes = await loadUnavailableTimes();
     const partTimeShifts = await loadPartTimeShifts();
@@ -77,7 +90,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         }
     });
     calendar.render();
-});
+}
 
 function getEventDates(holidaysData) {
     var eventDates = [];
@@ -101,7 +114,7 @@ function isHoliday(date, holidaysData) {
 }
 
 async function loadUnavailableTimes() {
-    const querySnapshot = await getDocs(collection(db, "unavailableTimes"));
+    const querySnapshot = await getDocs(query(collection(db, "unavailableTimes"), where("userId", "==", currentUser.uid)));
     const unavailableTimes = [];
     const today = new Date();
     const endDate = new Date();
@@ -143,7 +156,7 @@ async function loadUnavailableTimes() {
 }
 
 async function loadPartTimeShifts() {
-    const querySnapshot = await getDocs(collection(db, "partTimeShifts"));
+    const querySnapshot = await getDocs(query(collection(db, "partTimeShifts"), where("userId", "==", currentUser.uid)));
     const partTimeShifts = [];
     const today = new Date();
     const endDate = new Date();

@@ -7,17 +7,26 @@
     <script type="module">
         import { firebaseConfig } from './APIkeys/firebaseAPI.js';
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.6.0/firebase-app.js';
-        import { getFirestore, getDocs, collection, deleteDoc, doc } from 'https://www.gstatic.com/firebasejs/9.6.0/firebase-firestore.js';
+        import { getFirestore, getDocs, collection, deleteDoc, doc, query, where } from 'https://www.gstatic.com/firebasejs/9.6.0/firebase-firestore.js';
+        import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.6.0/firebase-auth.js';
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
+        const auth = getAuth(app);
+        let currentUser = null;
 
-        document.addEventListener('DOMContentLoaded', async function() {
-            await loadUnavailableTimes();
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                currentUser = user;
+                loadUnavailableTimes();
+            } else {
+                // ユーザが認証されていない場合、ログインページにリダイレクト
+                window.location.href = 'login.html';
+            }
         });
 
         async function loadUnavailableTimes() {
-            const timesQuery = collection(db, "unavailableTimes");
+            const timesQuery = query(collection(db, "unavailableTimes"), where("userId", "==", currentUser.uid));
             const querySnapshot = await getDocs(timesQuery);
             const timesList = document.getElementById('timesList');
             timesList.innerHTML = '';  // リストをクリア
@@ -58,6 +67,7 @@
                 <li><a href="calendar.html">カレンダー</a></li>
                 <li><a href="view-jobs.html">登録済みアルバイト情報</a></li>
                 <li><a href="view-schedule.html">登録済み予定</a></li>
+                <li><a href="authentication.html">ログアウト</a></li> <!-- ログアウトボタンの追加 -->
             </ul>
         </nav>
     </header>
