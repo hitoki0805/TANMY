@@ -13,7 +13,7 @@
         const db = getFirestore(app);
 
         document.addEventListener('DOMContentLoaded', function() {
-            document.getElementById('unavailableForm').addEventListener('submit', async function(event) {
+            document.getElementById('jobForm').addEventListener('submit', async function(event) {
                 event.preventDefault();
                 const recurrence = document.getElementById('recurrence').value;
                 const date = document.getElementById('date').value;
@@ -106,7 +106,7 @@
         </nav>
     </header>
     <div class="container">
-        <form id="unavailableForm">
+        <form id="jobForm">
             <label for="name">名称:</label>
             <input type="text" id="name"><br> <!-- 名称の入力欄 -->
             <label for="date">日付:</label>

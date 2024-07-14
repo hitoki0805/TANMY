@@ -6,9 +6,19 @@ import { escapeHTML } from './escapeHTML.js';
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
+// アルバイト情報を取得する関数を追加
+async function loadJobData() {
+    const jobsCollection = collection(db, "jobs");
+    const snapshot = await getDocs(jobsCollection);
+    const jobsData = [];
+    snapshot.forEach(doc => {
+        jobsData.push(doc.data());
+    });
+    return jobsData;
+}
+
 // モックデータを追加する関数
 async function getUnavailableTimes(sleepStartTime, sleepEndTime, startDate, endDate, storeOpenTime, storeCloseTime) {
-    // 開始日と終了日の間の日付を生成
     console.log("getUnavailableTimesが実行されました。")
     const dateRange = [];
     let currentDate = new Date(startDate);
@@ -42,7 +52,6 @@ async function getUnavailableTimes(sleepStartTime, sleepEndTime, startDate, endD
     console.log("Sleep times:", sleepTimes);
     console.log("Close times:", closeTimes);
 
-    // データベースから取得した予定を含める
     const registeredTimes = await loadRegisteredTimes(new Date(startDate), new Date(endDate));
 
     const allTimes = [
@@ -51,7 +60,6 @@ async function getUnavailableTimes(sleepStartTime, sleepEndTime, startDate, endD
         ...closeTimes
     ];
 
-    // 日時でソート
     return allTimes.sort((a, b) => {
         let dateTimeA = new Date(`${a.date}T${a.startTime}`);
         let dateTimeB = new Date(`${b.date}T${b.startTime}`);
@@ -102,15 +110,54 @@ async function loadRegisteredTimes(startDate, endDate) {
     return registeredTimes;
 }
 
-// アルバイト情報を取得する関数を追加
-async function loadJobData() {
-    const jobsCollection = collection(db, "jobs");
-    const snapshot = await getDocs(jobsCollection);
-    const jobsData = [];
-    snapshot.forEach(doc => {
-        jobsData.push(doc.data());
+// シフトを読み込む関数を修正して重複を解消
+async function loadPartTimeShifts() {
+    const querySnapshot = await getDocs(collection(db, "partTimeShifts"));
+    const partTimeShifts = [];
+    const today = new Date();
+    const endDate = new Date();
+    endDate.setMonth(today.getMonth() + 3); // 3ヶ月先までの予定を表示
+
+    querySnapshot.forEach((docSnapshot) => {
+        const time = docSnapshot.data();
+        const startDate = new Date(time.date);
+        const recurrence = time.recurrence;
+
+        if (recurrence === 'none') {
+            partTimeShifts.push({
+                title: time.name,
+                start: time.date + 'T' + time.startTime,
+                end: time.date + 'T' + time.endTime,
+                color: time.color // 色を適用
+            });
+        } else {
+            let currentDate = new Date(startDate);
+            while (currentDate <= endDate) {
+                partTimeShifts.push({
+                    title: time.name,
+                    start: currentDate.toISOString().split('T')[0] + 'T' + time.startTime,
+                    end: currentDate.toISOString().split('T')[0] + 'T' + time.endTime,
+                    color: time.color // 色を適用
+                });
+
+                if (recurrence === 'daily') {
+                    currentDate.setDate(currentDate.getDate() + 1);
+                } else if (recurrence === 'weekly') {
+                    currentDate.setDate(currentDate.getDate() + 7);
+                } else if (recurrence === 'monthly') {
+                    currentDate.setMonth(currentDate.getMonth() + 1);
+                }
+            }
+        }
     });
-    return jobsData;
+    return partTimeShifts;
+}
+
+// コレクション内のすべてのドキュメントを削除する関数を追加
+async function clearCollection(collectionRef) {
+    const querySnapshot = await getDocs(collectionRef);
+    const deletePromises = querySnapshot.docs.map(docSnapshot => deleteDoc(docSnapshot.ref));
+    await Promise.all(deletePromises);
 }
 
 // メイン関数
@@ -118,7 +165,6 @@ async function proposeShifts(sleepStartTime, sleepEndTime, startDate, endDate, s
     const blockedTimes = await getUnavailableTimes(sleepStartTime, sleepEndTime, startDate, endDate, storeOpenTime, storeCloseTime, hourlyWage, nightWage, holidayPay);
     console.log("登録されている予定", blockedTimes);
 
-    // 利用可能なシフトを提案
     let availableShifts = [];
     let currentDate = new Date(`${startDate.toISOString().split('T')[0]}T${storeOpenTime}`);
     if (currentDate < startDate) {
@@ -133,7 +179,6 @@ async function proposeShifts(sleepStartTime, sleepEndTime, startDate, endDate, s
 
         // console.log(dayOpenTime)
 
-        // 当日の予定されている時間を除外
         const dayBlockedTimes = blockedTimes.filter(time => time.date === currentDate.toISOString().split('T')[0]);
         let currentTime = dayOpenTime; // 店舗の開店時間から開始
         dayBlockedTimes.forEach(block => {
@@ -154,7 +199,6 @@ async function proposeShifts(sleepStartTime, sleepEndTime, startDate, endDate, s
             // console.log(blockEnd)
         });
 
-        // 最後のブロック後の時間を追加
         if (currentTime < dayCloseTime && totalHours < 8) {
             let remainingHours = 8 - totalHours;
             let potentialEndTime = new Date(currentTime.getTime() + remainingHours * 3600000);
@@ -214,35 +258,36 @@ async function clearCollection(collectionRef) {
 async function saveShiftsToDatabase(shifts) {
     const shiftsCollection = collection(db, "partTimeShifts");
 
-    // コレクション内の既存のデータを削除
     await clearCollection(shiftsCollection);
 
-    // 新しいシフトデータを追加
+    const jobsData = await loadJobData();
+
     for (const shift of shifts) {
         const startDate = new Date(shift.start);
         const endDate = new Date(shift.end);
 
-        // ローカル時間を取得し、2桁で表示するようにフォーマット
         const startTime = startDate.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', hour12: false });
         const endTime = endDate.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', hour12: false });
         const weekday = getWeekdayString(startDate.getDay());
 
-        // ローカルの日付を取得
         const localDate = new Date(startDate.getTime() - (startDate.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
 
+        const jobName = jobsData[0].name;
+        const jobColor = jobsData[0].color;
+
         await addDoc(shiftsCollection, {
-            date: localDate, // ローカルの日付を使用
+            date: localDate,
             startTime: startTime,
             endTime: endTime,
             weekday: weekday,
             recurrence: 'none',
-            name: 'アルバイト'
+            name: jobName,
+            color: jobColor
         });
         console.log("データベースにシフトを登録しました。")
     }
 }
 
-// ページ読み込み時にアルバイト情報と利用不可能な時間を取得してコンソールに表示するように変更
 window.onload = () => {
     loadJobData().then(data => {
         console.log("取得したアルバイト情報:", data);
@@ -254,6 +299,12 @@ window.onload = () => {
         event.preventDefault();
         const targetEarnings = document.getElementById('targetEarnings').value;
         const targetMonth = document.getElementById('targetMonth').value;
+        const lifestyle = document.getElementById('lifestyle').value;
+        getShifts(targetEarnings, targetMonth, lifestyle);
+    });
+};
+
+function getShifts(targetEarnings, targetMonth, lifestyle) {
         const lifestyle = document.getElementById('lifestyle').value; // 生活習慣の選択を取得
         const preferredDays = Array.from(document.getElementById('preferredDays').selectedOptions).map(option => parseInt(option.value)); // 優先曜日の選択を取得
         
@@ -261,17 +312,15 @@ window.onload = () => {
         console.log("選択された優先曜日:", preferredDays);
 
         getShifts(targetEarnings, targetMonth, lifestyle, preferredDays);
-    });
 };
 
 // getShifts関数に月を引数として追加
 function getShifts(targetEarnings, targetMonth, lifestyle, preferredDays) {
     const year = targetMonth.split('-')[0];
     const month = parseInt(targetMonth.split('-')[1], 10);
-    const startDate = new Date(Date.UTC(year, month - 1, 1)); // 選択された月の初日をUTCで設定
-    const endDate = new Date(Date.UTC(year, month, 0));      // 選択された月の最終日をUTCで設定
+    const startDate = new Date(Date.UTC(year, month - 1, 1));
+    const endDate = new Date(Date.UTC(year, month, 0));
 
-    // 生活習慣に基づいてsleepStartTimeとsleepEndTimeを設定
     let sleepStartTime, sleepEndTime;
     if (lifestyle === 'morning') {
         sleepStartTime = '22:00';
@@ -285,7 +334,6 @@ function getShifts(targetEarnings, targetMonth, lifestyle, preferredDays) {
     }
 
     loadJobData().then(jobsData => {
-        // バイトの掛け持ちに対応する場合は、ここを修正
         const storeOpenTime = jobsData[0].storeOpenTime;
         const storeCloseTime = jobsData[0].storeCloseTime;
         const hourlyWage = jobsData[0].hourlyWage;
@@ -295,10 +343,8 @@ function getShifts(targetEarnings, targetMonth, lifestyle, preferredDays) {
         const newStartDate = new Date(startDate.toISOString().split('T')[0]);
         const newEndDate = new Date(endDate.toISOString().split('T')[0]);
 
-        console.log(newStartDate, newEndDate)
-        console.log(sleepStartTime, sleepEndTime)
-
         getUnavailableTimes(sleepStartTime, sleepEndTime, newStartDate, newEndDate, storeOpenTime, storeCloseTime, hourlyWage, nightWage, holidayPay).then(times => {
+            proposeShifts(sleepStartTime, sleepEndTime, startDate, endDate, storeOpenTime, storeCloseTime, hourlyWage, nightWage, holidayPay, hourlyWage, nightWage, holidayPay)
             console.log("目標金額:", targetEarnings);
             console.log("提案期間:", startDate.toISOString().split('T')[0], "から", endDate.toISOString().split('T')[0]);
             console.log("取得した利用不可能な時間:", times);
@@ -313,10 +359,43 @@ function getShifts(targetEarnings, targetMonth, lifestyle, preferredDays) {
             console.log("proposeShiftsの実行を開始します")
             proposeShifts(sleepStartTime, sleepEndTime, startDate, endDate, storeOpenTime, storeCloseTime, hourlyWage, nightWage, holidayPay)
             .then(availableShifts => {
-                console.log("proposeShiftsの実行を開始しました")
-                // 効率よく目標金額に達成するためのシフトを計算
                 let totalEarnings = 0;
                 let selectedShifts = [];
+                availableShifts.forEach(shift => {
+                    let shiftStart = shift.start;
+                    let shiftEnd = shift.end;
+                    let shiftDuration = (shiftEnd - shiftStart) / 3600000;
+                    let shiftEarnings = 0;
+        
+                    let currentHour = new Date(shiftStart);
+                    while (currentHour < shiftEnd) {
+                        let nextHour = new Date(currentHour.getTime() + 3600000);
+                        if (nextHour > shiftEnd) {
+                            nextHour = shiftEnd;
+                        }
+                        let hourDuration = (nextHour - currentHour) / 3600000;
+        
+                        if (currentHour.getHours() >= 22 || currentHour.getHours() < 5) {
+                            shiftEarnings += hourDuration * nightWage;
+                        } else {
+                            shiftEarnings += hourDuration * hourlyWage;
+                        }
+        
+                        if (currentHour.getDay() === 0 || currentHour.getDay() === 6) {
+                            shiftEarnings += hourDuration * (holidayPay - hourlyWage);
+                        }
+        
+                        currentHour = new Date(currentHour.getTime() + 3600000);
+                    }
+        
+                    if (totalEarnings <= targetEarnings) {
+                        selectedShifts.push(shift);
+                        totalEarnings += shiftEarnings;
+                    }
+                });
+        
+                displayShifts(selectedShifts);
+                saveShiftsToDatabase(selectedShifts);
 
                 // 優先曜日のシフトを先に選択
                 const preferredShifts = availableShifts.filter(shift => preferredDays.includes(new Date(shift.start).getDay()));
