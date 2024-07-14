@@ -1,7 +1,7 @@
-
 import { firebaseConfig } from '../APIkeys/firebaseAPI.js';
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js';
 import { getFirestore, getDocs, collection } from 'https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js';
+import { escapeHTML } from './escapeHTML.js';
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
@@ -28,18 +28,17 @@ document.addEventListener('DOMContentLoaded', async function () {
             if (!info.event.extendedProps.holiday) { // 祝日でないイベントのみ詳細を表示
                 var eventObj = info.event;
                 var content = `
-                             <div class="popup-content">
-                                <h3>${eventObj.title}</h3>
-                                <p><strong>開始:</strong> ${eventObj.start.toLocaleString()}</p>
-                                <p><strong>終了:</strong> ${eventObj.end ? eventObj.end.toLocaleString() : 'なし'}</p>
-                             </div>
-                        `;
+                    <div class="popup-content">
+                        <h3>${escapeHTML(eventObj.title)}</h3>
+                        <p><strong>開始:</strong> ${escapeHTML(eventObj.start.toLocaleString())}</p>
+                        <p><strong>終了:</strong> ${eventObj.end ? escapeHTML(eventObj.end.toLocaleString()) : 'なし'}</p>
+                    </div>
+                `;
                 // イベントの位置を取得してポップアップを表示
                 const rect = info.el.getBoundingClientRect();
-                showPopup(content, rect.left, rect.top, info.view.type);
+                showPopup(content, rect.right, rect.top);
             }
-        }
-        ,
+        },
         eventContent: function (arg) {
             // 祝日の日付にクラスを追加
             if (arg.event.extendedProps.holiday) {
@@ -49,7 +48,7 @@ document.addEventListener('DOMContentLoaded', async function () {
                 }
             }
             // 予定の名称を表示
-            let customHtml = '<div class="fc-event-title">' + arg.event.title + '</div>';
+            let customHtml = '<div class="fc-event-title">' + escapeHTML(arg.event.title) + '</div>';
             return { html: customHtml };
         },
         dayCellClassNames: function (arg) {
@@ -57,6 +56,8 @@ document.addEventListener('DOMContentLoaded', async function () {
                 return 'fc-sun';
             } else if (arg.date.getDay() === 6) {
                 return 'fc-sat';
+            } else if (isHoliday(arg.date, holidaysData)) { // 祝日を赤色に設定
+                return 'fc-holiday';
             }
         }
     });
@@ -68,9 +69,8 @@ function getEventDates(holidaysData) {
 
     var holidays = Object.keys(holidaysData);
     for (var i = 0; i < holidays.length; i++) {
-        var holiday =
-        {
-            title: holidaysData[holidays[i]],
+        var holiday = {
+            title: escapeHTML(holidaysData[holidays[i]]),
             start: holidays[i],
             className: "holiday",
             holiday: holidays[i],
@@ -81,6 +81,10 @@ function getEventDates(holidaysData) {
     return eventDates; // 返り値を追加
 }
 
+function isHoliday(date, holidaysData) {
+    var dateString = date.toISOString().split('T')[0];
+    return holidaysData.hasOwnProperty(dateString);
+  
 async function loadUnavailableTimes() {
     const querySnapshot = await getDocs(collection(db, "unavailableTimes"));
     const unavailableTimes = [];
@@ -95,7 +99,7 @@ async function loadUnavailableTimes() {
 
         if (recurrence === 'none') {
             unavailableTimes.push({
-                title: time.name, // 予定の名称を追加
+                title: escapeHTML(time.name), // 予定の名称を追加
                 start: time.date + 'T' + time.startTime,
                 end: time.date + 'T' + time.endTime,
                 color: 'red'
@@ -104,7 +108,7 @@ async function loadUnavailableTimes() {
             let currentDate = new Date(startDate);
             while (currentDate <= endDate) {
                 unavailableTimes.push({
-                    title: time.name, // 予定の名称を追加
+                    title: escapeHTML(time.name), // 予定の名称を追加
                     start: currentDate.toISOString().split('T')[0] + 'T' + time.startTime,
                     end: currentDate.toISOString().split('T')[0] + 'T' + time.endTime,
                     color: 'red'
@@ -137,7 +141,7 @@ async function loadPartTimeShifts() {
 
         if (recurrence === 'none') {
             partTimeShifts.push({
-                title: time.name, // 予定の名称を追加
+                title: escapeHTML(time.name), // 予定の名称を追加
                 start: time.date + 'T' + time.startTime,
                 end: time.date + 'T' + time.endTime,
                 color: 'red'
@@ -146,7 +150,7 @@ async function loadPartTimeShifts() {
             let currentDate = new Date(startDate);
             while (currentDate <= endDate) {
                 partTimeShifts.push({
-                    title: time.name, // 予定の名称を追加
+                    title: escapeHTML(time.name), // 予定の名称を追加
                     start: currentDate.toISOString().split('T')[0] + 'T' + time.startTime,
                     end: currentDate.toISOString().split('T')[0] + 'T' + time.endTime,
                     color: 'red'
