@@ -16,6 +16,7 @@ async function loadJobData() {
     return jobsData;
 }
 
+
 document.addEventListener('DOMContentLoaded', async function () {
     const holidaysData = await $.get("https://holidays-jp.github.io/api/v1/date.json");
     const unavailableTimes = await loadUnavailableTimes();
@@ -28,6 +29,13 @@ document.addEventListener('DOMContentLoaded', async function () {
         jobColorMap[job.name] = job.color;
     });
 
+    // シフトの重複チェック
+    const uniquePartTimeShifts = partTimeShifts.filter((shift, index, self) =>
+        index === self.findIndex((s) => (
+            s.start === shift.start && s.end === shift.end
+        ))
+    );
+
     var calendarEl = document.getElementById('calendar');
     var calendar = new FullCalendar.Calendar(calendarEl, {
         headerToolbar: {
@@ -39,20 +47,19 @@ document.addEventListener('DOMContentLoaded', async function () {
         navLinks: true,
         editable: true,
         dayMaxEvents: true,
-        events: [...getEventDates(holidaysData), ...unavailableTimes, ...partTimeShifts],
+        events: [...getEventDates(holidaysData), ...unavailableTimes, ...uniquePartTimeShifts],
         eventClick: function (info) {
             if (!info.event.extendedProps.holiday) {
                 var eventObj = info.event;
                 var content = `
                     <div class="popup-content">
-                        <h3>${escapeHTML(eventObj.title)}</h3>
-                        <p><strong>開始:</strong> ${escapeHTML(eventObj.start.toLocaleString())}</p>
-                        <p><strong>終了:</strong> ${eventObj.end ? escapeHTML(eventObj.end.toLocaleString()) : 'なし'}</p>
+                        <h3>${eventObj.title}</h3>
+                        <p><strong>開始:</strong> ${eventObj.start.toLocaleString()}</p>
+                        <p><strong>終了:</strong> ${eventObj.end ? eventObj.end.toLocaleString() : 'なし'}</p>
                     </div>
                 `;
-                // イベントの位置を取得してポップアップを表示
                 const rect = info.el.getBoundingClientRect();
-                showPopup(content, rect.right, rect.top);
+                showPopup(content, rect.left, rect.top, info.view.type);
             }
         },
         eventContent: function (arg) {
@@ -60,19 +67,17 @@ document.addEventListener('DOMContentLoaded', async function () {
             let textColor = '';
             if (jobColorMap[arg.event.title]) {
                 backgroundColor = `background-color: ${jobColorMap[arg.event.title]};`;
-                textColor = `color: white;`;
+                textColor = `color: #2C3E50;`;
             }
-            // 予定の名称を表示
-            let customHtml = '<div class="fc-event-title">' + escapeHTML(arg.event.title) + '</div>';
+            let customHtml = `<div class="fc-daygrid-event" style="${backgroundColor}"><div class="fc-event-title" style="${textColor} padding: 2px 4px; border-radius: 3px;">${arg.event.title}</div></div>`;
             return { html: customHtml };
         },
+        
         dayCellClassNames: function (arg) {
             if (arg.date.getDay() === 0) {
                 return 'fc-sun';
             } else if (arg.date.getDay() === 6) {
                 return 'fc-sat';
-            } else if (isHoliday(arg.date, holidaysData)) { // 祝日を赤色に設定
-                return 'fc-holiday';
             }
         }
     });
