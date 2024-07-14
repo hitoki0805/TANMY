@@ -13,7 +13,7 @@ header {
 }
 
 header h1 {
-    font-family: 'Roboto', sans-serif; /* 'カレンダー' 文字のフォントを設定 */
+    font-family: 'Roboto', sans-serif;
     margin: 0;
     text-align: center;
 }
@@ -38,21 +38,31 @@ nav ul li a {
 nav ul li a:hover {
     text-decoration: underline;
 }
+
 .container {
     width: 90%;
     margin: auto;
     padding: 50px;
-    background-color: #fff;
-    border-radius: 5px;
-    box-shadow: 0 0 10px rgba(0,0,0,0.1);
-    margin-top: 120px; /* ヘッダーの高さを引いた分 */
     text-align: center;
 }
 
 #calendar {
-    max-width: 900px;
+    max-width: 1200px; /* カレンダーの最大幅を広げる */
     width: 100%;
     margin: auto;
+    background-color: #FFFFFF;
+    border-radius: 5px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+}
+
+.fc-toolbar-title {
+    font-size: 1.5em;
+    font-weight: bold;
+}
+
+.fc-daygrid-day-number {
+    font-size: 1.2em;
 }
 
 .fc-toolbar {
@@ -80,12 +90,12 @@ nav ul li a:hover {
 
 /* ポップアップのスタイルを追加 */
 .popup {
-    position: absolute; /* 絶対位置 */
-    background-color: #fff; /* 背景色を白に設定 */
-    padding: 20px; /* 内側の余白を20pxに設定 */
-    border-radius: 5px; /* 角を丸くする */
-    box-shadow: 0 0 10px rgba(0,0,0,0.1); /* 影を追加 */
-    z-index: 10001; /* 重ね順を設定して他の要素よりも上に表示 */
+    position: absolute;
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 5px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    z-index: 10001;
 }
 
 .popup-content h3 {
@@ -112,5 +122,6 @@ nav ul li a:hover {
     background-color: #1A252F;
     color: #FFFFFF;
 }
+
 
 
