@@ -210,7 +210,7 @@ window.onload = () => {
     });
 };
 
-async function proposeShifts(sleepStartTime, sleepEndTime, startDate, endDate, storeOpenTime, storeCloseTime, hourlyWage, nightWage, holidayPay) {
+async function proposeShifts(sleepStartTime, sleepEndTime, startDate, endDate, storeOpenTime, storeCloseTime, hourlyWage, nightWage, holidayPay, weeklyHoliday, monthlyHolidays) {
     const blockedTimes = await getUnavailableTimes(sleepStartTime, sleepEndTime, startDate, endDate, storeOpenTime, storeCloseTime, hourlyWage, nightWage, holidayPay);
     console.log("登録されている予定", blockedTimes);
 
@@ -226,7 +226,17 @@ async function proposeShifts(sleepStartTime, sleepEndTime, startDate, endDate, s
         let dayShifts = [];
         let totalHours = 0; // その日の合計労働時間を追跡
 
-        // console.log(dayOpenTime)
+        // 定休日（曜日）をチェック
+        if (weeklyHoliday.includes(getWeekdayString(currentDate.getDay()))) {
+            currentDate.setDate(currentDate.getDate() + 1);
+            continue;
+        }
+
+        // 定休日（日付）をチェック
+        if (monthlyHolidays.includes(currentDate.getDate().toString())) {
+            currentDate.setDate(currentDate.getDate() + 1);
+            continue;
+        }
 
         const dayBlockedTimes = blockedTimes.filter(time => time.date === currentDate.toISOString().split('T')[0]);
         let currentTime = dayOpenTime; // 店舗の開店時間から開始
@@ -245,7 +255,6 @@ async function proposeShifts(sleepStartTime, sleepEndTime, startDate, endDate, s
                 }
             }
             currentTime = new Date(Math.max(blockEnd.getTime(), dayOpenTime.getTime())); // 開店時間とblockEndの遅い方を次の開始時間とする
-            // console.log(blockEnd)
         });
 
         if (currentTime < dayCloseTime && totalHours < 8) {
@@ -258,10 +267,19 @@ async function proposeShifts(sleepStartTime, sleepEndTime, startDate, endDate, s
                 dayShifts.push({ start: currentTime, end: potentialEndTime });
             }
         }
-
         availableShifts = availableShifts.concat(dayShifts);
         currentDate.setDate(currentDate.getDate() + 1); // 次の日に進む
     }
+
+    console.log("定休日削除前のシフト候補：", availableShifts)
+
+    // 定休日のシフトを削除
+    availableShifts = availableShifts.filter(shift => {
+        const shiftDate = new Date(shift.start);
+        const shiftDay = shiftDate.getDay();
+        const shiftDayOfMonth = shiftDate.getDate();
+        return !weeklyHoliday.includes(getWeekdayString(shiftDay)) && !monthlyHolidays.includes(shiftDayOfMonth.toString());
+    });
 
     console.log("シフト候補:", availableShifts);
     return availableShifts;
@@ -292,8 +310,12 @@ function getShifts(targetEarnings, targetMonth, lifestyle, preferredDays) {
         const hourlyWage = jobsData[0].hourlyWage;
         const nightWage = jobsData[0].nightWage;
         const holidayPay = jobsData[0].holidayPay;
+        const weeklyHoliday = jobsData[0].weeklyHoliday || [];
+        const monthlyHolidays = jobsData[0].monthlyHolidays || [];
+        console.log(weeklyHoliday);
+        console.log(monthlyHolidays);
 
-        proposeShifts(sleepStartTime, sleepEndTime, startDate, endDate, storeOpenTime, storeCloseTime, hourlyWage, nightWage, holidayPay).then(availableShifts => {
+        proposeShifts(sleepStartTime, sleepEndTime, startDate, endDate, storeOpenTime, storeCloseTime, hourlyWage, nightWage, holidayPay, weeklyHoliday, monthlyHolidays).then(availableShifts => {
             let totalEarnings = 0;
             let selectedShifts = [];
 
