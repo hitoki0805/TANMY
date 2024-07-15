@@ -15,7 +15,7 @@ onAuthStateChanged(auth, (user) => {
         initializeCalendar();
     } else {
         // ユーザが認証されていない場合、ログインページにリダイレクト
-        window.location.href = 'login.html';
+        window.location.href = 'authentication.html';
     }
 });
 
