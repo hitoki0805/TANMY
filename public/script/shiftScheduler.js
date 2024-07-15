@@ -1,14 +1,31 @@
 import { firebaseConfig } from '../APIkeys/firebaseAPI.js';
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js';
-import { getFirestore, getDocs, collection, addDoc, deleteDoc, doc } from 'https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js';
+import { getFirestore, getDocs, collection, addDoc, deleteDoc, doc, query, where } from 'https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js';
+import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.6.10/firebase-auth.js';
 import { escapeHTML } from './escapeHTML.js';
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app);
+let currentUser = null;
+
+onAuthStateChanged(auth, (user) => {
+    if (user) {
+        currentUser = user;
+        loadJobData().then(data => {
+            console.log("取得したアルバイト情報:", data);
+        }).catch(error => {
+            console.error("アルバイト情報の取得に失敗しました:", error);
+        });
+    } else {
+        // ユーザが認証されていない場合、ログインページにリダイレクト
+        window.location.href = 'authentication.html';
+    }
+});
 
 // アルバイト情報を取得する関数を追加
 async function loadJobData() {
-    const jobsCollection = collection(db, "jobs");
+    const jobsCollection = query(collection(db, "jobs"), where("userId", "==", currentUser.uid));
     const snapshot = await getDocs(jobsCollection);
     const jobsData = [];
     snapshot.forEach(doc => {
@@ -72,7 +89,7 @@ async function getUnavailableTimes(sleepStartTime, sleepEndTime, startDate, endD
 }
 
 async function loadRegisteredTimes(startDate, endDate) {
-    const querySnapshot = await getDocs(collection(db, "unavailableTimes"));
+    const querySnapshot = await getDocs(query(collection(db, "unavailableTimes"), where("userId", "==", currentUser.uid)));
     const registeredTimes = [];
 
     querySnapshot.forEach((docSnapshot) => {
@@ -109,7 +126,6 @@ async function loadRegisteredTimes(startDate, endDate) {
             }
         }
     });
-
     return registeredTimes;
 }
 
@@ -157,7 +173,7 @@ async function loadPartTimeShifts() {
 }
 
 // コレクション内のすべてのドキュメントを削除する関数を追加
-async function clearCollection(collectionRef) {
+async function clear(collectionRef) {
     const querySnapshot = await getDocs(collectionRef);
     const deletePromises = querySnapshot.docs.map(docSnapshot => deleteDoc(docSnapshot.ref));
     await Promise.all(deletePromises);
@@ -243,6 +259,20 @@ function displayShifts(shifts) {
     suggestedShiftsDiv.appendChild(ul);
 }
 
+// 曜日を文字列に変換する関数
+function getWeekdayString(dayNumber) {
+    const weekdays = ['日曜日', '月曜日', '火曜日', '水曜日', '木曜日', '金曜日', '土曜日'];
+    return weekdays[dayNumber];
+}
+
+// コレクション内のすべてのドキュメントを削除する関数
+async function clearUserShifts() {
+    const shiftsCollection = query(collection(db, "partTimeShifts"), where("userId", "==", currentUser.uid));
+    const querySnapshot = await getDocs(shiftsCollection);
+    const deletePromises = querySnapshot.docs.map(docSnapshot => deleteDoc(docSnapshot.ref));
+    await Promise.all(deletePromises);
+}
+
 // シフトをデータベースに登録する関数を追加
 async function saveShiftsToDatabase(shifts) {
     const shiftsCollection = collection(db, "partTimeShifts");
@@ -268,6 +298,7 @@ async function saveShiftsToDatabase(shifts) {
             recurrence: 'none',
             name: shift.jobName,
             color: shift.jobColor
+            userId: currentUser.uid // ユーザIDを追加
         });
 
         console.log("データベースにシフトを登録しました。");
@@ -291,12 +322,6 @@ async function deleteJobAndShifts(jobId) {
 }
 
 window.onload = () => {
-    loadJobData().then(data => {
-        console.log("取得したアルバイト情報:", data);
-    }).catch(error => {
-        console.error("アルバイト情報の取得に失敗しました:", error);
-    });
-
     document.getElementById('earningsForm').addEventListener('submit', (event) => {
         event.preventDefault();
         const targetEarnings = document.getElementById('targetEarnings').value;
@@ -347,7 +372,7 @@ async function getJobTimeRanges(startDate, endDate) {
 // getShifts関数の修正
 function getShifts(targetEarnings, targetMonth, lifestyle, preferredDays) {
     const year = targetMonth.split('-')[0];
-    const month = parseInt(targetMonth.split('-')[1], 10);
+    const month = parseInt(targetMonth.split('-')[1], 10)
     const startDate = new Date(Date.UTC(year, month - 1, 1));
     const endDate = new Date(Date.UTC(year, month, 0));
 
@@ -439,7 +464,7 @@ function getShifts(targetEarnings, targetMonth, lifestyle, preferredDays) {
                     console.error("エラーが発生しました:", error);
                 });
         }).catch(error => {
-            console.error("利用不可能な時間の取得に失敗しました:", error);
+            console.error("エラーが発生しました:", error);
         });
     }).catch(error => {
         console.error("アルバイト情報の取得に失敗しました:", error);
