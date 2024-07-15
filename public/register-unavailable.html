@@ -7,10 +7,23 @@
     <script type="module">
         import { firebaseConfig } from './APIkeys/firebaseAPI.js';
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js';
-        import { getFirestore, addDoc, collection, getDocs, query, deleteDoc, doc } from 'https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js';
+        import { getFirestore, addDoc, collection, getDocs, query, deleteDoc, doc, where } from 'https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js';
+        import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.6.10/firebase-auth.js';
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
+        const auth = getAuth(app);
+        let currentUser = null;
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                currentUser = user;
+                loadUnavailableTimes();
+            } else {
+                // ユーザが認証されていない場合、ログインページにリダイレクト
+                window.location.href = 'login.html';
+            }
+        });
 
         document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('unavailableForm').addEventListener('submit', async function(event) {
@@ -26,7 +39,8 @@
                     startTime: document.getElementById('startTime').value,
                     endTime: document.getElementById('endTime').value,
                     recurrence: recurrence,
-                    weekday: weekday // 新しいフィールド
+                    weekday: weekday,
+                    userId: currentUser.uid // ユーザIDを追加
                 };
 
                 try {
@@ -39,12 +53,11 @@
                     alert('エラーが発生しました。詳細: ' + error.message);
                 }
             });
-
-            loadUnavailableTimes();
         });
 
         async function loadUnavailableTimes() {
-            const querySnapshot = await getDocs(query(collection(db, "unavailableTimes")));
+            const timesQuery = query(collection(db, "unavailableTimes"), where("userId", "==", currentUser.uid));
+            const querySnapshot = await getDocs(timesQuery);
             const timesList = document.getElementById('timesList');
             timesList.innerHTML = '';  // リストをクリア
 
@@ -95,13 +108,14 @@
 </head>
 <body>
     <header>
-        <h1>予定の登録</h1>
+        <h1>予定登録</h1>
         <nav>
             <ul>
                 <li><a href="mainpage.html">ホーム</a></li>
                 <li><a href="calendar.html">カレンダー</a></li>
                 <li><a href="view-jobs.html">登録済みアルバイト情報</a></li>
                 <li><a href="view-schedule.html">登録済み予定</a></li>
+                <li><a href="authentication.html">ログアウト</a></li> <!-- ログアウトボタンの追加 -->
             </ul>
         </nav>
     </header>
@@ -126,7 +140,7 @@
             <button type="submit">登録</button>
         </form>
         <h2>登録済みの予定</h2>
-        <u2 id="timesList"></u2>
+        <ul id="timesList"></ul>
         <a href="mainpage.html" class="back-button">前のページに戻る</a>
     </div>
 </body>

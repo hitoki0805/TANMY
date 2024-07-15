@@ -8,68 +8,128 @@
     <script type="module">
         import { firebaseConfig } from './APIkeys/firebaseAPI.js';
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js';
-        import { getFirestore, addDoc, collection, getDocs, query, deleteDoc, doc } from 'https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js';
+        import { getFirestore, addDoc, collection, getDocs, query, deleteDoc, doc, where } from 'https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js';
+        import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.6.10/firebase-auth.js';
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        const jobColors = ['#FFCDD2', '#E1BEE7', '#BBDEFB', '#C8E6C9', '#FFECB3', '#F8BBD0', '#D1C4E9', '#C5CAE9', '#DCEDC8', '#FFE082'];
+        let usedColors = new Set(); // 使用中の色を保持するセット
+        let currentUser = null;
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                currentUser = user;
+                loadJobs();
+                loadUsedColors();
+            } else {
+                // ユーザが認証されていない場合、ログインページにリダイレクト
+                window.location.href = 'login.html';
+            }
+        });
+
+        async function loadUsedColors() {
+            const jobsQuery = query(collection(db, "jobs"), where("userId", "==", currentUser.uid));
+            const querySnapshot = await getDocs(jobsQuery);
+            querySnapshot.forEach((doc) => {
+                const job = doc.data();
+                if (job.color) {
+                    usedColors.add(job.color);
+                }
+            });
+        }
+
+        // 使用されていない色を見つける関数を追加
+        function getAvailableColor() {
+            for (const color of jobColors) {
+                if (!usedColors.has(color)) {
+                    return color;
+                }
+            }
+            return jobColors[0]; // 全ての色が使用されている場合、デフォルトの色を返す
+        }
+
+        async function loadJobs() {
+            const jobsQuery = query(collection(db, "jobs"), where("userId", "==", currentUser.uid));
+            const querySnapshot = await getDocs(jobsQuery);
+            const jobsList = document.getElementById('jobsList');
+            jobsList.innerHTML = ''; // リストをクリア
+
+            querySnapshot.forEach((doc) => {
+                const job = doc.data();
+                const listItem = document.createElement('li');
+                listItem.innerHTML = `バイト先の名称：${job.name}<br>基本給：${job.hourlyWage}円<br>深夜給：${job.nightWage}円<br>店舗の開店時間：${job.storeOpenTime}<br>店舗の閉店時間：${job.storeCloseTime}<br>休日給：${job.holidayPay}円`;
+                listItem.style.marginBottom = "20px"; // 項目間の隙間を設定
+                listItem.style.backgroundColor = job.color; // Firestoreに保存された色を使用
+                listItem.style.padding = "10px"; // 内側の余白を設定
+                listItem.style.borderRadius = "5px"; // 角を丸くする
+
+                const deleteButton = document.createElement('button');
+                deleteButton.textContent = '削除';
+                deleteButton.style.display = "block"; // ボタンをブロック要素として表示
+                deleteButton.style.marginTop = "10px"; // ボタンの上の隙間を設定
+                deleteButton.addEventListener('click', () => deleteJob(doc.id));
+                listItem.appendChild(deleteButton);
+                jobsList.appendChild(listItem);
+            });
+
+            // アルバイト情報が既に登録されている場合、フォームを無効化
+            if (!querySnapshot.empty) {
+                document.getElementById('jobForm').style.display = 'none';
+                const message = document.createElement('p');
+                message.id = 'infoMessage';
+                message.innerHTML = '既にアルバイト情報が登録されています。<br>アルバイト情報を更新する場合は、既存の情報を削除してからもう一度登録をお願いします。';
+                document.querySelector('.container').appendChild(message);
+            } else {
+                document.getElementById('jobForm').style.display = 'block';
+                const existingMessage = document.getElementById('infoMessage');
+                if (existingMessage) {
+                    existingMessage.remove();
+                }
+            }
+        }
 
         document.getElementById('jobForm').addEventListener('submit', async function (event) {
             event.preventDefault();
+
+            // フォームのバリデーション
+            const storeOpenTime = document.getElementById('storeOpenTime').value;
+            const storeCloseTime = document.getElementById('storeCloseTime').value;
+            const timePattern = /^([01]\d|2[0-3]):([0-5]\d)$/;
+
+            if (!timePattern.test(storeOpenTime) || !timePattern.test(storeCloseTime)) {
+                alert('時間は00:00の形式で入力してください。');
+                return;
+            }
+
             const jobData = {
                 name: document.getElementById('name').value,
                 hourlyWage: Number(document.getElementById('hourlyWage').value),
                 nightWage: Number(document.getElementById('nightWage').value),
                 storeOpenTime: document.getElementById('storeOpenTime').value,
                 storeCloseTime: document.getElementById('storeCloseTime').value,
-                holidayPay: Number(document.getElementById('holidayPay').value)  // 休日給の値を取得して数値に変換
+                holidayPay: Number(document.getElementById('holidayPay').value),
+                color: getAvailableColor(),
+                userId: currentUser.uid // ユーザIDを追加
             };
+            usedColors.add(jobData.color); // 新しい色を使用中に追加
 
             try {
                 await addDoc(collection(db, "jobs"), jobData);
                 alert('登録が完了しました。');
                 document.getElementById('jobForm').reset();
-                loadJobs();  // データを再読み込み
+                loadJobs(); // データを再読み込み
             } catch (error) {
                 console.error('エラーが発生しました: ', error);
                 alert('エラーが発生しました。詳細: ' + error.message);
             }
         });
 
-        loadJobs();
-        ;
-
-        async function loadJobs() {
-            const jobsQuery = query(collection(db, "jobs"));
-            const querySnapshot = await getDocs(jobsQuery);
-            const jobsList = document.getElementById('jobsList');
-            jobsList.innerHTML = '';  // リストをクリア
-
-            const colors = ['#FFCDD2', '#E1BEE7', '#BBDEFB', '#C8E6C9', '#FFECB3', '#F8BBD0', '#D1C4E9', '#C5CAE9', '#DCEDC8', '#FFE082'];  // 色のリスト
-            let colorIndex = 0;
-
-            querySnapshot.forEach((doc) => {
-                const job = doc.data();
-                const listItem = document.createElement('li');
-                listItem.innerHTML = `バイト先の名称：${job.name}<br>基本給：${job.hourlyWage}円<br>深夜給：${job.nightWage}円<br>店舗の開店時間：${job.storeOpenTime}<br>店舗の閉店時間：${job.storeCloseTime}<br>休日給：${job.holidayPay}円`;
-                listItem.style.marginBottom = "20px";  // 項目間の隙間を設定
-                listItem.style.backgroundColor = colors[colorIndex % colors.length];  // 色を設定
-                listItem.style.padding = "10px";  // 内側の余白を設定
-                listItem.style.borderRadius = "5px";  // 角を丸くする
-                colorIndex++;
-
-                const deleteButton = document.createElement('button');
-                deleteButton.textContent = '削除';
-                deleteButton.style.display = "block";  // ボタンをブロック要素として表示
-                deleteButton.style.marginTop = "10px";  // ボタンの上の隙間を設定
-                deleteButton.addEventListener('click', () => deleteJob(doc.id));
-                listItem.appendChild(deleteButton);
-                jobsList.appendChild(listItem);
-            });
-        }
-
         async function deleteJob(id) {
             await deleteDoc(doc(db, "jobs", id));
-            loadJobs();  // データを再読み込み
+            loadJobs(); // データを再読み込み
         }
     </script>
 </head>
@@ -83,10 +143,10 @@
                 <li><a href="calendar.html">カレンダー</a></li>
                 <li><a href="view-jobs.html">登録済みアルバイト情報</a></li>
                 <li><a href="view-schedule.html">登録済み予定</a></li>
+                <li><a href="authentication.html">ログアウト</a></li> <!-- ログアウトボタンの追加 -->
             </ul>
         </nav>
     </header>
-    <h1>アルバイト情報登録</h1>
     <div class="container">
         <form id="jobForm">
             <label for="name">アルバイト先の名称:</label>
@@ -96,19 +156,17 @@
             <label for="nightWage">深夜給:</label>
             <input type="number" id="nightWage" required><br>
             <label for="storeOpenTime">店舗の開店時間:</label>
-            <input type="text" id="storeOpenTime" placeholder="例: 08:00" required><br>
+            <input type="text" id="storeOpenTime" placeholder="例: 08:00" required pattern="^([01]\d|2[0-3]):([0-5]\d)$"><br>
             <label for="storeCloseTime">店舗の閉店時間:</label>
-            <input type="text" id="storeCloseTime" placeholder="例: 23:30" required><br>
+            <input type="text" id="storeCloseTime" placeholder="例: 23:30" required pattern="^([01]\d|2[0-3]):([0-5]\d)$"><br>
             <label for="holidayPay">休日給:</label>
             <input type="number" id="holidayPay" required><br>
             <button type="submit">登録</button>
         </form>
         <h2>登録済みのアルバイト情報</h2>
-        <u2 id="jobsList"></u2>
-        <!-- 前のページに戻るボタン -->
+        <ul id="jobsList"></ul>
         <a href="mainpage.html" class="back-button">前のページに戻る</a>
     </div>
-
 </body>
 
 </html>

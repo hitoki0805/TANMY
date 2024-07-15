@@ -1,16 +1,46 @@
 import { firebaseConfig } from '../APIkeys/firebaseAPI.js';
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js';
-import { getFirestore, getDocs, collection } from 'https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js';
+import { getFirestore, getDocs, collection, query, where } from 'https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js';
+import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.6.10/firebase-auth.js';
+import { escapeHTML } from './escapeHTML.js';
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app);
+let currentUser = null;
 
-document.addEventListener('DOMContentLoaded', async function () {
+onAuthStateChanged(auth, (user) => {
+    if (user) {
+        currentUser = user;
+        initializeCalendar();
+    } else {
+        // ユーザが認証されていない場合、ログインページにリダイレクト
+        window.location.href = 'login.html';
+    }
+});
+
+async function loadJobData() {
+    const jobsCollection = query(collection(db, "jobs"), where("userId", "==", currentUser.uid));
+    const snapshot = await getDocs(jobsCollection);
+    const jobsData = [];
+    snapshot.forEach(doc => {
+        jobsData.push(doc.data());
+    });
+    return jobsData;
+}
+
+async function initializeCalendar() {
     const holidaysData = await $.get("https://holidays-jp.github.io/api/v1/date.json");
     const unavailableTimes = await loadUnavailableTimes();
     const partTimeShifts = await loadPartTimeShifts();
+    const jobData = await loadJobData();
 
-    // 初期処理
+    // アルバイト名と色のマッピング
+    const jobColorMap = {};
+    jobData.forEach(job => {
+        jobColorMap[job.name] = job.color;
+    });
+
     var calendarEl = document.getElementById('calendar');
     var calendar = new FullCalendar.Calendar(calendarEl, {
         headerToolbar: {
@@ -19,18 +49,18 @@ document.addEventListener('DOMContentLoaded', async function () {
             right: 'timeGridDay,timeGridWeek,dayGridMonth'
         },
         initialView: 'dayGridMonth',
-        navLinks: true, // 日付と週のリンクを有効にする
+        navLinks: true,
         editable: true,
-        dayMaxEvents: true, // イベントが多い場合には+ボタンで表示
+        dayMaxEvents: true,
         events: [...getEventDates(holidaysData), ...unavailableTimes, ...partTimeShifts],
         eventClick: function (info) {
-            if (!info.event.extendedProps.holiday) { // 祝日でないイベントのみ詳細を表示
+            if (!info.event.extendedProps.holiday) {
                 var eventObj = info.event;
                 var content = `
                     <div class="popup-content">
-                        <h3>${eventObj.title}</h3>
-                        <p><strong>開始:</strong> ${eventObj.start.toLocaleString()}</p>
-                        <p><strong>終了:</strong> ${eventObj.end ? eventObj.end.toLocaleString() : 'なし'}</p>
+                        <h3>${escapeHTML(eventObj.title)}</h3>
+                        <p><strong>開始:</strong> ${escapeHTML(eventObj.start.toLocaleString())}</p>
+                        <p><strong>終了:</strong> ${eventObj.end ? escapeHTML(eventObj.end.toLocaleString()) : 'なし'}</p>
                     </div>
                 `;
                 // イベントの位置を取得してポップアップを表示
@@ -39,15 +69,14 @@ document.addEventListener('DOMContentLoaded', async function () {
             }
         },
         eventContent: function (arg) {
-            // 祝日の日付にクラスを追加
-            if (arg.event.extendedProps.holiday) {
-                var element = document.querySelector('.fc-daygrid-day[data-date="' + arg.event.startStr + '"]');
-                if (element) {
-                    element.classList.add("holiday");
-                }
+            let backgroundColor = '';
+            let textColor = '';
+            if (jobColorMap[arg.event.title]) {
+                backgroundColor = `background-color: ${jobColorMap[arg.event.title]};`;
+                textColor = `color: white;`;
             }
             // 予定の名称を表示
-            let customHtml = '<div class="fc-event-title">' + arg.event.title + '</div>';
+            let customHtml = '<div class="fc-event-title">' + escapeHTML(arg.event.title) + '</div>';
             return { html: customHtml };
         },
         dayCellClassNames: function (arg) {
@@ -61,15 +90,14 @@ document.addEventListener('DOMContentLoaded', async function () {
         }
     });
     calendar.render();
-});
+}
 
 function getEventDates(holidaysData) {
     var eventDates = [];
-
     var holidays = Object.keys(holidaysData);
     for (var i = 0; i < holidays.length; i++) {
         var holiday = {
-            title: holidaysData[holidays[i]],
+            title: escapeHTML(holidaysData[holidays[i]]),
             start: holidays[i],
             className: "holiday",
             holiday: holidays[i],
@@ -77,7 +105,7 @@ function getEventDates(holidaysData) {
         };
         eventDates.push(holiday);
     }
-    return eventDates; // 返り値を追加
+    return eventDates;
 }
 
 function isHoliday(date, holidaysData) {
@@ -86,11 +114,11 @@ function isHoliday(date, holidaysData) {
 }
 
 async function loadUnavailableTimes() {
-    const querySnapshot = await getDocs(collection(db, "unavailableTimes"));
+    const querySnapshot = await getDocs(query(collection(db, "unavailableTimes"), where("userId", "==", currentUser.uid)));
     const unavailableTimes = [];
     const today = new Date();
     const endDate = new Date();
-    endDate.setMonth(today.getMonth() + 3); // 3ヶ月先までの予定を表示
+    endDate.setMonth(today.getMonth() + 3);
 
     querySnapshot.forEach((docSnapshot) => {
         const time = docSnapshot.data();
@@ -99,7 +127,7 @@ async function loadUnavailableTimes() {
 
         if (recurrence === 'none') {
             unavailableTimes.push({
-                title: time.name, // 予定の名称を追加
+                title: escapeHTML(time.name), // 予定の名称を追加
                 start: time.date + 'T' + time.startTime,
                 end: time.date + 'T' + time.endTime,
                 color: 'red'
@@ -108,7 +136,7 @@ async function loadUnavailableTimes() {
             let currentDate = new Date(startDate);
             while (currentDate <= endDate) {
                 unavailableTimes.push({
-                    title: time.name, // 予定の名称を追加
+                    title: escapeHTML(time.name), // 予定の名称を追加
                     start: currentDate.toISOString().split('T')[0] + 'T' + time.startTime,
                     end: currentDate.toISOString().split('T')[0] + 'T' + time.endTime,
                     color: 'red'
@@ -128,11 +156,11 @@ async function loadUnavailableTimes() {
 }
 
 async function loadPartTimeShifts() {
-    const querySnapshot = await getDocs(collection(db, "partTimeShifts"));
+    const querySnapshot = await getDocs(query(collection(db, "partTimeShifts"), where("userId", "==", currentUser.uid)));
     const partTimeShifts = [];
     const today = new Date();
     const endDate = new Date();
-    endDate.setMonth(today.getMonth() + 3); // 3ヶ月先までの予定を表示
+    endDate.setMonth(today.getMonth() + 3);
 
     querySnapshot.forEach((docSnapshot) => {
         const time = docSnapshot.data();
@@ -141,19 +169,19 @@ async function loadPartTimeShifts() {
 
         if (recurrence === 'none') {
             partTimeShifts.push({
-                title: time.name, // 予定の名称を追加
+                title: escapeHTML(time.name), // 予定の名称を追加
                 start: time.date + 'T' + time.startTime,
                 end: time.date + 'T' + time.endTime,
-                color: 'red'
+                color: time.color // ここで色を適用
             });
         } else {
             let currentDate = new Date(startDate);
             while (currentDate <= endDate) {
                 partTimeShifts.push({
-                    title: time.name, // 予定の名称を追加
+                    title: escapeHTML(time.name), // 予定の名称を追加
                     start: currentDate.toISOString().split('T')[0] + 'T' + time.startTime,
                     end: currentDate.toISOString().split('T')[0] + 'T' + time.endTime,
-                    color: 'red'
+                    color: time.color // ここで色を適用
                 });
 
                 if (recurrence === 'daily') {
@@ -169,8 +197,7 @@ async function loadPartTimeShifts() {
     return partTimeShifts;
 }
 
-function showPopup(content, x, y) {
-    // 既存のポップアップがあれば削除
+function showPopup(content, x, y, viewType) {
     const existingPopup = document.querySelector('.popup');
     if (existingPopup) {
         existingPopup.remove();
@@ -181,11 +208,14 @@ function showPopup(content, x, y) {
     popup.innerHTML = content;
     document.body.appendChild(popup);
 
-    // ポップアップの位置を設定
-    popup.style.left = `${x}px`;
-    popup.style.top = `${y}px`;
+    if (viewType === 'timeGridWeek' || viewType === 'timeGridDay') {
+        popup.style.left = `${x}px`;
+        popup.style.top = `${y + window.scrollY + popup.getBoundingClientRect().height}px`;
+    } else {
+        popup.style.left = `${x + window.scrollX}px`;
+        popup.style.top = `${y + window.scrollY}px`;
+    }
 
-    // ポップアップ以外をクリックしたときにポップアップを閉じる
     setTimeout(() => {
         document.addEventListener('click', function removePopup(event) {
             if (!popup.contains(event.target)) {
