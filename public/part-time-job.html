@@ -26,7 +26,7 @@
                 loadUsedColors();
             } else {
                 // ユーザが認証されていない場合、ログインページにリダイレクト
-                window.location.href = 'login.html';
+                window.location.href = 'authentication.html';
             }
         });
 
@@ -51,6 +51,46 @@
             return jobColors[0]; // 全ての色が使用されている場合、デフォルトの色を返す
         }
 
+        async function loadJobs() {
+            const jobsQuery = query(collection(db, "jobs"), where("userId", "==", currentUser.uid));
+            const querySnapshot = await getDocs(jobsQuery);
+            const jobsList = document.getElementById('jobsList');
+            jobsList.innerHTML = ''; // リストをクリア
+
+            querySnapshot.forEach((doc) => {
+                const job = doc.data();
+                const listItem = document.createElement('li');
+                listItem.innerHTML = `バイト先の名称：${job.name}<br>基本給：${job.hourlyWage}円<br>深夜給：${job.nightWage}円<br>店舗の開店時間：${job.storeOpenTime}<br>店舗の閉店時間：${job.storeCloseTime}<br>休日給：${job.holidayPay}円<br>定休日（曜日）：${job.weeklyHoliday.length > 0 ? job.weeklyHoliday.join(', ') : 'なし'}<br>定休日（日付）：${job.monthlyHolidays.length > 0 ? job.monthlyHolidays.join(', ') : 'なし'}`;
+                listItem.style.marginBottom = "20px"; // 項目間の隙間を設定
+                listItem.style.backgroundColor = job.color; // Firestoreに保存された色を使用
+                listItem.style.padding = "10px"; // 内側の余白を設定
+                listItem.style.borderRadius = "5px"; // 角を丸くする
+
+                const deleteButton = document.createElement('button');
+                deleteButton.textContent = '削除';
+                deleteButton.style.display = "block"; // ボタンをブロック要素として表示
+                deleteButton.style.marginTop = "10px"; // ボタンの上の隙間を設定
+                deleteButton.addEventListener('click', () => deleteJob(doc.id));
+                listItem.appendChild(deleteButton);
+                jobsList.appendChild(listItem);
+            });
+
+            // アルバイト情報が既に登録されている場合、フォームを無効化
+            if (!querySnapshot.empty) {
+                document.getElementById('jobForm').style.display = 'none';
+                const message = document.createElement('p');
+                message.id = 'infoMessage';
+                message.innerHTML = '既にアルバイト情報が登録されています。<br>アルバイト情報を更新する場合は、既存の情報を削除してからもう一度登録をお願いします。';
+                document.querySelector('.container').appendChild(message);
+            } else {
+                document.getElementById('jobForm').style.display = 'block';
+                const existingMessage = document.getElementById('infoMessage');
+                if (existingMessage) {
+                    existingMessage.remove();
+                }
+            }
+        }
+
         document.getElementById('jobForm').addEventListener('submit', async function (event) {
             event.preventDefault();
 
@@ -64,6 +104,9 @@
                 return;
             }
 
+            const weeklyHoliday = Array.from(document.querySelectorAll('input[name="weeklyHoliday"]:checked')).map(cb => cb.value);
+            const monthlyHolidays = document.getElementById('monthlyHolidays').value.split(',').map(day => day.trim()).filter(day => day);
+
             const jobData = {
                 name: document.getElementById('name').value,
                 hourlyWage: Number(document.getElementById('hourlyWage').value),
@@ -71,6 +114,8 @@
                 storeOpenTime: document.getElementById('storeOpenTime').value,
                 storeCloseTime: document.getElementById('storeCloseTime').value,
                 holidayPay: Number(document.getElementById('holidayPay').value),
+                weeklyHoliday: weeklyHoliday, // 定休日（曜日）を追加
+                monthlyHolidays: monthlyHolidays, // 定休日（日付）を追加
                 color: getAvailableColor(),
                 userId: currentUser.uid // ユーザIDを追加
             };
@@ -86,31 +131,6 @@
                 alert('エラーが発生しました。詳細: ' + error.message);
             }
         });
-
-        async function loadJobs() {
-            const jobsQuery = query(collection(db, "jobs"), where("userId", "==", currentUser.uid));
-            const querySnapshot = await getDocs(jobsQuery);
-            const jobsList = document.getElementById('jobsList');
-            jobsList.innerHTML = ''; // リストをクリア
-
-            querySnapshot.forEach((doc) => {
-                const job = doc.data();
-                const listItem = document.createElement('li');
-                listItem.innerHTML = `バイト先の名称：${job.name}<br>基本給：${job.hourlyWage}円<br>深夜給：${job.nightWage}円<br>店舗の開店時間：${job.storeOpenTime}<br>店舗の閉店時間：${job.storeCloseTime}<br>休日給：${job.holidayPay}円`;
-                listItem.style.marginBottom = "20px"; // 項目間の隙間を設定
-                listItem.style.backgroundColor = job.color; // Firestoreに保存された色を使用
-                listItem.style.padding = "10px"; // 内側の余白を設定
-                listItem.style.borderRadius = "5px"; // 角を丸くする
-
-                const deleteButton = document.createElement('button');
-                deleteButton.textContent = '削除';
-                deleteButton.style.display = "block"; // ボタンをブロック要素として表示
-                deleteButton.style.marginTop = "10px"; // ボタンの上の隙間を設定
-                deleteButton.addEventListener('click', () => deleteJob(doc.id));
-                listItem.appendChild(deleteButton);
-                jobsList.appendChild(listItem);
-            });
-        }
 
         async function deleteJob(id) {
             await deleteDoc(doc(db, "jobs", id));
@@ -146,6 +166,16 @@
             <input type="text" id="storeCloseTime" placeholder="例: 23:30" required pattern="^([01]\d|2[0-3]):([0-5]\d)$"><br>
             <label for="holidayPay">休日給:</label>
             <input type="number" id="holidayPay" required><br>
+            <label>定休日（曜日）:</label><br>
+            <label><input type="checkbox" name="weeklyHoliday" value="日曜日"> 日曜日</label>
+            <label><input type="checkbox" name="weeklyHoliday" value="月曜日"> 月曜日</label>
+            <label><input type="checkbox" name="weeklyHoliday" value="火曜日"> 火曜日</label>
+            <label><input type="checkbox" name="weeklyHoliday" value="水曜日"> 水曜日</label>
+            <label><input type="checkbox" name="weeklyHoliday" value="木曜日"> 木曜日</label>
+            <label><input type="checkbox" name="weeklyHoliday" value="金曜日"> 金曜日</label>
+            <label><input type="checkbox" name="weeklyHoliday" value="土曜日"> 土曜日</label><br>
+            <label for="monthlyHolidays">定休日（日付）:</label>
+            <input type="text" id="monthlyHolidays" placeholder="例: 5, 20"><br> <!-- 定休日（日付）の入力フィールドを追加 -->
             <button type="submit">登録</button>
         </form>
         <h2>登録済みのアルバイト情報</h2>

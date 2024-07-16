@@ -22,7 +22,7 @@
                 loadJobs();
             } else {
                 // ユーザが認証されていない場合、ログインページにリダイレクト
-                window.location.href = 'login.html';
+                window.location.href = 'authentication.html';
             }
         });
 
@@ -51,6 +51,8 @@
                     <p>休日給：${job.holidayPay}円</p>
                     <p>開店時間：${job.storeOpenTime}</p>
                     <p>閉店時間：${job.storeCloseTime}</p>
+                    <p>定休日（曜日）：${job.weeklyHoliday.length > 0 ? job.weeklyHoliday.join(', ') : 'なし'}</p>
+                    <p>定休日（日付）：${job.monthlyHolidays.length > 0 ? job.monthlyHolidays.join(', ') : 'なし'}</p>
                     <button class="delete-button">削除</button>
                 `;
                 listItem.querySelector('.delete-button').addEventListener('click', async () => {
