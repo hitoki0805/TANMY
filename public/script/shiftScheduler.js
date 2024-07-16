@@ -297,7 +297,7 @@ async function saveShiftsToDatabase(shifts) {
             weekday: weekday,
             recurrence: 'none',
             name: shift.jobName,
-            color: shift.jobColor
+            color: shift.jobColor,
             userId: currentUser.uid // ユーザIDを追加
         });
 

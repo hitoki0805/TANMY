@@ -93,23 +93,6 @@ footer {
     bottom: 0;
 }
 
-@media (max-width: 768px) {
-    nav ul {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-    }
-
-    nav ul li {
-        margin: 10px 0;
-    }
-
-    .button {
-        width: 100%;
-        box-sizing: border-box;
-    }
-}
-
 .fc-day-sat .fc-daygrid-day-number,
 .fc-col-header-cell-sat {
     color: blue;
