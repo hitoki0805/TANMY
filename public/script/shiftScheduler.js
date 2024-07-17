@@ -135,6 +135,9 @@ function displayShifts(shifts, totalEarnings) {
         return;
     }
 
+    // シフトを日時順に並べ替え
+    shifts.sort((a, b) => new Date(a.start) - new Date(b.start));
+
     const ul = document.createElement('ul');
     shifts.forEach(shift => {
         const li = document.createElement('li');
