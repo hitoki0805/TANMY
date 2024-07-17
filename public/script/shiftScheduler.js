@@ -126,7 +126,7 @@ async function loadRegisteredTimes(startDate, endDate) {
 }
 
 // シフトをページに表示する関数
-function displayShifts(shifts) {
+function displayShifts(shifts, totalEarnings) {
     const suggestedShiftsDiv = document.getElementById('suggestedShifts');
     suggestedShiftsDiv.innerHTML = ''; // 既存の内容をクリア
 
@@ -145,6 +145,11 @@ function displayShifts(shifts) {
         ul.appendChild(li);
     });
     suggestedShiftsDiv.appendChild(ul);
+
+    // 合計金額を表示
+    const totalEarningsDiv = document.createElement('div');
+    totalEarningsDiv.innerHTML = `<p>合計金額: ${totalEarnings.toLocaleString()}円</p>`;
+    suggestedShiftsDiv.appendChild(totalEarningsDiv);
 }
 
 // 曜日を文字列に変換する関数
@@ -369,7 +374,7 @@ function getShifts(targetEarnings, targetMonth, lifestyle, preferredDays) {
                 calculateShifts(nonPreferredShifts);
             }
 
-            displayShifts(selectedShifts); // シフトを表示
+            displayShifts(selectedShifts, totalEarnings); // シフトと合計金額を表示
             saveShiftsToDatabase(selectedShifts); // シフトをデータベースに保存
         }).catch(error => {
             console.error("エラーが発生しました:", error);
