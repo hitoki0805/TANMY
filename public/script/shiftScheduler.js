@@ -289,6 +289,12 @@ async function proposeShifts(sleepStartTime, sleepEndTime, startDate, endDate, s
         return !weeklyHoliday.includes(getWeekdayString(shiftDay)) && !monthlyHolidays.includes(shiftDayOfMonth.toString());
     });
 
+    // 2時間未満のシフトを削除
+    availableShifts = availableShifts.filter(shift => {
+        const shiftDuration = (new Date(shift.end) - new Date(shift.start)) / 3600000;
+        return shiftDuration >= 2;
+    });
+
     console.log("シフト候補:", availableShifts);
     return availableShifts;
 }
