@@ -308,14 +308,14 @@ function getShifts(targetEarnings, targetMonth, lifestyle, preferredDays) {
 
     let sleepStartTime, sleepEndTime;
     if (lifestyle === 'morning') {
-        sleepStartTime = '22:00';
+        sleepStartTime = '20:00';
         sleepEndTime = '06:00';
     } else if (lifestyle === 'night') {
         sleepStartTime = '02:00';
-        sleepEndTime = '10:00';
+        sleepEndTime = '12:00';
     } else {
-        sleepStartTime = '23:00';
-        sleepEndTime = '07:00';
+        sleepStartTime = '22:00';
+        sleepEndTime = '09:00';
     }
 
     loadJobData().then(jobsData => {
